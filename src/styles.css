@@ -308,3 +308,8 @@ button,input{font:inherit}
 .room-bar span.red{background:#ef4444}.room-bar span.blue{background:#2f6bf3}
 .room-status{display:inline-block;margin-top:14px;padding:10px 14px;border-radius:12px;font-weight:700}
 .room-status.green{background:#e5fae9;color:#12b74e}.room-status.red{background:#ffe4e4;color:#ef4444}.room-status.blue{background:#e7ecff;color:#2f6bf3}
+
+.tag.state.pendiente,.tag.state.en-revisiÃ³n,.tag.state.bloqueado,.tag.state.licencia{background:#fff0cf;color:#f59e0b}
+.tag.state.activa,.tag.state.activo,.tag.state.en-proceso{background:#e4f8e8;color:#22c55e}
+.period-field span{display:block;color:#6f7d93;font-weight:700;margin-bottom:8px}
+.period-field strong{font-size:1.15rem;font-weight:500;color:#263244}

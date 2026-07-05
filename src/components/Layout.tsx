@@ -21,7 +21,6 @@ const navSections = [
     title: 'Configuración',
     items: [
       { to: '/periodos', label: 'Períodos Académicos' },
-      { to: '/coordinadores', label: 'Coordinadores' },
     ],
   },
 ];
@@ -30,11 +29,12 @@ export function Layout() {
   const location = useLocation();
   const titles: Record<string, { title: string; breadcrumb: string }> = {
     '/': { title: 'Dashboard', breadcrumb: 'Inicio' },
-    '/clases-por-aula': { title: 'Tablero Kanban', breadcrumb: 'Asignación Sección → Aula' },
+    '/clases-por-aula': { title: 'Clases por Aula', breadcrumb: 'Asignación Sección → Aula' },
     '/horario': { title: 'Horario por Aula', breadcrumb: 'Calendario Semanal' },
     '/docentes': { title: 'Catálogo de Docentes', breadcrumb: 'Gestión de Personal Académico' },
     '/aulas': { title: 'Catálogo de Aulas', breadcrumb: 'Infraestructura Física' },
     '/secciones': { title: 'Catálogo de Secciones', breadcrumb: 'Asignaturas y Grupos' },
+    '/periodos': { title: 'Configuración de Períodos', breadcrumb: 'Gestión Académica' },
   };
   const current = titles[location.pathname] ?? titles['/'];
 

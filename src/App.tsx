@@ -8,6 +8,7 @@ import { FacultadesPage } from './pages/FacultadesPage';
 import { AulasPage } from './pages/AulasPage';
 import { DocentesPage } from './pages/DocentesPage';
 import { SeccionesPage } from './pages/SeccionesPage';
+import { PeriodosAcademicosPage } from './pages/PeriodosAcademicosPage';
 
 export default function App() {
   return (
@@ -21,6 +22,7 @@ export default function App() {
         <Route path="/aulas" element={<AulasPage />} />
         <Route path="/docentes" element={<DocentesPage />} />
         <Route path="/secciones" element={<SeccionesPage />} />
+        <Route path="/periodos" element={<PeriodosAcademicosPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
