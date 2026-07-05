@@ -21,6 +21,7 @@ const navSections = [
     title: 'Configuración',
     items: [
       { to: '/periodos', label: 'Períodos Académicos' },
+      { to: '/coordinadores', label: 'Coordinadores' },
     ],
   },
 ];
@@ -35,6 +36,7 @@ export function Layout() {
     '/aulas': { title: 'Catálogo de Aulas', breadcrumb: 'Infraestructura Física' },
     '/secciones': { title: 'Catálogo de Secciones', breadcrumb: 'Asignaturas y Grupos' },
     '/periodos': { title: 'Configuración de Períodos', breadcrumb: 'Gestión Académica' },
+    '/coordinadores': { title: 'Catálogo de Coordinadores', breadcrumb: 'Gestión de Personal Académico' },
   };
   const current = titles[location.pathname] ?? titles['/'];
 
