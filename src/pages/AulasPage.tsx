@@ -9,10 +9,9 @@ const rooms = [
 export function AulasPage() {
   return (
     <section className="rooms-page">
-      <div className="catalog-toolbar">
-        <h2>Catálogo de Aulas</h2>
-        <span>/ Infraestructura Física</span>
-        <button className="primary-btn">+ Nueva Aula</button>
+      <div className="toolbar">
+          <div className="catalog-summary">5 Aulas Registradas</div>
+          <button className="primary-btn">+ Nueva Aula</button>
       </div>
 
       <div className="rooms-grid">

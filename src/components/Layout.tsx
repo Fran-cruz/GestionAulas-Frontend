@@ -79,6 +79,7 @@ export function Layout() {
             <h1>{current.title}</h1>
             <span>/ {current.breadcrumb}</span>
           </div>
+          <div className="period-chip">● Periodo: Ago-Dic 2026</div>
           <div className="user-area">
             <div className="user-meta">
               <span>Coordinador Académico</span>

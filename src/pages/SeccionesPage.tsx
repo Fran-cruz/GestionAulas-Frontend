@@ -10,9 +10,9 @@ const sections = [
 export function SeccionesPage() {
   return (
     <section className="catalog-page">
-      <div className="catalog-toolbar">
-        <h2>Catálogo de Secciones</h2>
-        <span>/ Asignaturas y Grupos</span>
+      <div className="toolbar">
+        <div className="catalog-summary">6 Secciones Registradas</div>
+
         <button className="primary-btn">+ Nueva Sección</button>
       </div>
 

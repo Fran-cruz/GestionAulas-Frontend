@@ -7,15 +7,8 @@ const periods = [
 export function PeriodosAcademicosPage() {
   return (
     <section className="catalog-page">
-      <div className="catalog-toolbar">
-        <h2>Configuración de Períodos</h2>
-        <span>/ Gestión Académica</span>
-      </div>
-
-      <div className="dashboard-head" style={{ background: '#fff', paddingTop: 40, paddingBottom: 24 }}>
-        <div>
-          <h3>Gestión de Períodos Académicos</h3>
-        </div>
+      <div className="toolbar">
+        <div className="catalog-summary">Gestión de Períodos Académicos</div>
       </div>
 
       <div className="content-grid" style={{ gridTemplateColumns: '1fr 1fr', paddingTop: 40 }}>

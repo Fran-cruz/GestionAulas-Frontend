@@ -12,20 +12,16 @@ const conflicts = [
 export function HomePage() {
   return (
     <section className="dashboard-page">
-      <div className="toolbar">
-        <h2>Dashboard</h2>
-        <span>/ Inicio</span>
-        <div className="period-chip">● Periodo: Ago-Dic 2026</div>
-        <div className="toolbar-actions">
-          <button className="secondary-btn">↻ Actualizar</button>
-          <button className="primary-btn dropdown-btn">↑ Exportar Horario <span>▾</span></button>
-        </div>
-      </div>
-
       <div className="dashboard-head">
-        <div>
-          <h3>Indicadores en Tiempo Real — Período Activo</h3>
-          <p>Actualizado hace 2 min • Agosto-Diciembre 2026</p>
+        <div className="toolbar">
+          <div>
+            <h3>Indicadores en Tiempo Real - Período Activo</h3>
+            <p>Actualizado hace 2 min • Agosto-Diciembre 2026</p>
+          </div>
+          <div className="toolbar-actions">
+            <button className="secondary-btn">↻ Actualizar</button>
+            <button className="primary-btn dropdown-btn">↑ Exportar Horario <span>▾</span></button>
+          </div>
         </div>
       </div>
 

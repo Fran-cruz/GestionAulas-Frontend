@@ -8,13 +8,11 @@ const teachers = [
 export function DocentesPage() {
   return (
     <section className="catalog-page">
-      <div className="catalog-toolbar">
-        <h2>Catálogo de Docentes</h2>
-        <span>/ Gestión de Personal Académico</span>
+      <div className="toolbar">
+        <div className="catalog-summary">4 Docentes Registrados</div>
         <button className="primary-btn">+ Nuevo Docente</button>
       </div>
 
-      <div className="catalog-summary">38 Docentes Registrados</div>
 
       <div className="table-card full">
         <table>

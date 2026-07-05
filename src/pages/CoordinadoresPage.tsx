@@ -8,9 +8,8 @@ const coordinators = [
 export function CoordinadoresPage() {
   return (
     <section className="catalog-page">
-      <div className="catalog-toolbar">
-        <h2>Catálogo de Coordinadores</h2>
-        <span>/ Gestión de Personal Académico</span>
+      <div className="toolbar">
+        <div className="catalog-summary">4 Coordinadores Registrados</div>
         <button className="primary-btn">+ Nuevo Coordinador</button>
       </div>
 
