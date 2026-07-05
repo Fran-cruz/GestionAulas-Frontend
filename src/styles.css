@@ -221,14 +221,14 @@ button,input{font:inherit}
 }
 
 .dashboard-page,.catalog-page,.rooms-page{padding:0}
-.toolbar,.catalog-toolbar,.dashboard-head,.stats-grid,.content-grid,.rooms-grid{
+.toolbar,.dashboard-head,.stats-grid,.content-grid,.rooms-grid{
   width:100%;padding:0 24px
 }
 .toolbar{
-  height:84px;display:flex;align-items:center;gap:28px;background:#fff;border-bottom:1px solid #e0e7f2
+  margin:10px 0 10px 0;height:94px;display:flex;align-items:center;gap:28px;border-bottom:1px solid #e0e7f2
 }
-.toolbar h2,.catalog-toolbar h2{margin:0;font-size:1.05rem;color:#2a3445}
-.toolbar span,.catalog-toolbar span{color:#74839a}
+.toolbar h2{margin:0;font-size:1.05rem;color:#2a3445}
+.toolbar span{color:#74839a}
 .period-chip{
   margin-left:auto;background:#e8edff;color:#2962ff;border-radius:12px;padding:11px 18px;font-weight:700
 }
@@ -294,8 +294,7 @@ button,input{font:inherit}
 .activity-card small{display:block;color:#718096}
 .dot{width:10px;height:10px;border-radius:50%;margin-top:6px;display:inline-block}
 .dot.blue{background:#2f6bf3}.dot.orange{background:#ff7a1a}.dot.red{background:#ef4444}
-.catalog-toolbar{height:84px;display:flex;align-items:center;gap:22px;background:#fff;border-bottom:1px solid #e0e7f2}
-.catalog-toolbar .primary-btn{margin-left:auto}
+.toolbar .primary-btn{margin-left:auto}
 .catalog-summary{background:#f1f4f8;padding:24px 24px;font-size:1.15rem;font-weight:700;color:#2c3547}
 .rooms-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:40px;padding-top:76px}
 .room-summary{padding:22px 24px 26px}
