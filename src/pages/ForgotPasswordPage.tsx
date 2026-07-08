@@ -1,25 +1,24 @@
 import { FormEvent, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { login as loginRequest } from '../lib/auth';
+import { Link } from 'react-router-dom';
+import { forgotPassword as forgotPasswordRequest } from '../lib/auth';
 
-export function LoginPage() {
-  const navigate = useNavigate();
-  const [email, setEmail] = useState('admin@unicah.edu.hn');
-  const [password, setPassword] = useState('password');
+export function ForgotPasswordPage() {
+  const [email, setEmail] = useState('');
+  const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError('');
+    setMessage('');
     setLoading(true);
 
     try {
-      const data = await loginRequest(email, password);
-      localStorage.setItem('auth_user', JSON.stringify(data.user));
-      navigate('/', { replace: true });
-    } catch (loginError) {
-      setError(loginError instanceof Error ? loginError.message : 'No se pudo iniciar sesión.');
+      const data = await forgotPasswordRequest(email);
+      setMessage(data.message);
+    } catch (forgotError) {
+      setError(forgotError instanceof Error ? forgotError.message : 'No se pudo enviar el enlace.');
     } finally {
       setLoading(false);
     }
@@ -38,8 +37,8 @@ export function LoginPage() {
 
       <div className="auth-form-panel">
         <div className="auth-card">
-          <h3>Iniciar Sesión</h3>
-          <p>Bienvenido al sistema administrativo</p>
+          <h3>Recuperar contraseña</h3>
+          <p>Ingresa tu correo institucional para recibir instrucciones.</p>
 
           <form className="auth-form" onSubmit={handleSubmit}>
             <input
@@ -49,24 +48,16 @@ export function LoginPage() {
               onChange={(event) => setEmail(event.target.value)}
               required
             />
-            <input
-              type="password"
-              placeholder="••••••••••••"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              required
-            />
+            {message ? <div className="auth-success">{message}</div> : null}
             {error ? <div className="auth-error">{error}</div> : null}
             <button type="submit" className="primary-btn auth-submit" disabled={loading}>
-              {loading ? 'Ingresando...' : 'Ingresar al Sistema'}
+              {loading ? 'Enviando...' : 'Enviar enlace de recuperación'}
             </button>
           </form>
 
-          <Link to="/forgot-password" className="auth-forgot-link">
-            ¿Olvidaste tu contraseña?
+          <Link to="/login" className="auth-forgot-link">
+            Volver al inicio de sesión
           </Link>
-
-          <small>© 2026 Universidad Católica de Honduras</small>
         </div>
       </div>
     </section>

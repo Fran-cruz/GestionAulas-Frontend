@@ -312,3 +312,116 @@ button,input{font:inherit}
 .tag.state.activa,.tag.state.activo,.tag.state.en-proceso{background:#e4f8e8;color:#22c55e}
 .period-field span{display:block;color:#6f7d93;font-weight:700;margin-bottom:8px}
 .period-field strong{font-size:1.15rem;font-weight:500;color:#263244}
+
+.auth-screen{
+  min-height:100vh;
+  display:grid;
+  grid-template-columns:1.05fr .95fr;
+  background:#fff;
+}
+.auth-brand-panel{
+  background:#13254d;
+  color:#fff;
+  padding:110px 90px;
+  display:flex;
+  flex-direction:column;
+  justify-content:flex-start;
+  gap:110px;
+}
+.auth-brand-block h1{
+  margin:0 0 10px;
+  font-size:4rem;
+  line-height:1;
+  letter-spacing:-.04em;
+}
+.auth-brand-block p{
+  margin:0;
+  color:#b7c8ea;
+  font-size:1.18rem;
+}
+.auth-brand-panel h2{
+  margin:0;
+  font-size:2rem;
+  font-weight:700;
+}
+.auth-form-panel{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:40px;
+  background:#fff;
+}
+.auth-card{
+  width:min(520px, 100%);
+  min-height:570px;
+  border:1px solid #dce5f2;
+  border-radius:20px;
+  box-shadow:0 14px 38px rgba(19,38,74,.08);
+  padding:48px 54px 36px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+}
+.auth-card h3{
+  margin:0;
+  font-size:2rem;
+  color:#273247;
+}
+.auth-card p{
+  margin:8px 0 32px;
+  color:#718197;
+}
+.auth-form{
+  width:100%;
+  display:grid;
+  gap:22px;
+}
+.auth-error,
+.auth-success{
+  border-radius:12px;
+  padding:12px 14px;
+  font-size:.92rem;
+  line-height:1.4;
+}
+.auth-error{background:#fdecec;color:#c92a2a}
+.auth-success{background:#e8faf0;color:#15803d}
+.auth-form input{
+  height:56px;
+  border:1px solid #d9e3f1;
+  border-radius:10px;
+  padding:0 20px;
+  font-size:1rem;
+  color:#2b3447;
+  background:#fff;
+}
+.auth-submit{
+  height:56px;
+  font-size:1.03rem;
+  margin-top:6px;
+}
+.auth-forgot-link{
+  margin-top:36px;
+  color:#2f6bf3;
+  text-decoration:none;
+  font-size:.96rem;
+}
+.logout-btn{
+  border:0;
+  border-radius:999px;
+  padding:10px 16px;
+  background:#eef2ff;
+  color:#2b61e1;
+  font-weight:700;
+  cursor:pointer;
+}
+.auth-card small{
+  margin-top:auto;
+  color:#7c8aa1;
+  font-size:.95rem;
+}
+@media (max-width: 1100px){
+  .auth-screen{grid-template-columns:1fr}
+  .auth-brand-panel{padding:72px 40px; gap:72px; min-height:320px}
+  .auth-brand-block h1{font-size:3rem}
+  .auth-card{padding:40px 28px 32px}
+}

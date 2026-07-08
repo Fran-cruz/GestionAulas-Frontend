@@ -1,4 +1,5 @@
-import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { NavLink, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { getStoredAuthUser, logout } from '../lib/auth';
 
 const navSections = [
   {
@@ -28,6 +29,9 @@ const navSections = [
 
 export function Layout() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const user = getStoredAuthUser();
+
   const titles: Record<string, { title: string; breadcrumb: string }> = {
     '/': { title: 'Dashboard', breadcrumb: 'Inicio' },
     '/clases-por-aula': { title: 'Clases por Aula', breadcrumb: 'Asignación Sección → Aula' },
@@ -38,7 +42,17 @@ export function Layout() {
     '/periodos': { title: 'Configuración de Períodos', breadcrumb: 'Gestión Académica' },
     '/coordinadores': { title: 'Catálogo de Coordinadores', breadcrumb: 'Gestión de Personal Académico' },
   };
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
   const current = titles[location.pathname] ?? titles['/'];
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login', { replace: true });
+  };
 
   return (
     <div className="app-shell">
@@ -83,10 +97,13 @@ export function Layout() {
           <div className="user-area">
             <div className="user-meta">
               <span>Coordinador Académico</span>
-              <strong>María González</strong>
+              <strong>{user.name}</strong>
             </div>
             <div className="avatar">MG</div>
             <div className="bell">🔔</div>
+            <button type="button" className="logout-btn" onClick={handleLogout}>
+              Salir
+            </button>
           </div>
         </header>
         <main className="page">
