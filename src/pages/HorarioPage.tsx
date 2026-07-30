@@ -105,6 +105,11 @@ function getAutoCompleteDays(anchorDay: ScheduleDayKey, sessionsPerWeek: number)
   return family.slice(startIndex, startIndex + 2);
 }
 
+function sortDaysByWeekOrder(days: ScheduleDayKey[]) {
+  const order = new Map(scheduleDays.map((day, index) => [day.key, index]));
+  return [...days].sort((left, right) => (order.get(left) ?? 0) - (order.get(right) ?? 0));
+}
+
 export function HorarioPage() {
   const [snapshot, setSnapshot] = useState<ScheduleSnapshot | null>(null);
   const [selectedAula, setSelectedAula] = useState<number | null>(null);
@@ -258,6 +263,7 @@ export function HorarioPage() {
           section,
           scheduleSummary,
           sessionCount: assignmentSessions.length,
+          isComplete: assignmentSessions.length >= section.weeklySessionsTarget,
         };
       })
       .filter((item): item is NonNullable<typeof item> => item !== null)
@@ -284,7 +290,7 @@ export function HorarioPage() {
     room: ScheduleRoom,
     day: ScheduleDayKey,
     startMinutes: number,
-    excludeSessionId?: number,
+    excludeSessionIds: number[] = [],
   ) => {
     if (room.maintenance) {
       return 'El aula esta en mantenimiento.';
@@ -305,7 +311,7 @@ export function HorarioPage() {
 
     const daySessions = weeklyBlocks.get(day) ?? [];
     for (const session of daySessions) {
-      if (session.id === excludeSessionId) {
+      if (excludeSessionIds.includes(session.id)) {
         continue;
       }
 
@@ -372,19 +378,22 @@ export function HorarioPage() {
 
     const existingAssignment = assignmentBySectionId.get(section.id);
     const existingSessions = existingAssignment ? sessionsByAssignmentId.get(existingAssignment.id) ?? [] : [];
-    if (existingSessions.length >= section.weeklySessionsTarget) {
+    if (!autoCompleteEnabled && existingSessions.length >= section.weeklySessionsTarget) {
       setMessage(`La seccion ${section.code} ya tiene sus ${section.weeklySessionsTarget} sesiones. Mueve un bloque existente o elimina uno.`);
       setDragState(null);
       setDropState(null);
       return;
     }
 
-    const plannedDays = autoCompleteEnabled && existingSessions.length === 0
-      ? getAutoCompleteDays(day, section.weeklySessionsTarget)
+    const plannedDays = autoCompleteEnabled
+      ? sortDaysByWeekOrder(getAutoCompleteDays(day, section.weeklySessionsTarget))
       : [day];
+    const excludedSessionIds = autoCompleteEnabled
+      ? existingSessions.map((session) => session.id)
+      : [];
 
     for (const plannedDay of plannedDays) {
-      const conflict = findConflict(section, currentAula, plannedDay, startMinutes);
+      const conflict = findConflict(section, currentAula, plannedDay, startMinutes, excludedSessionIds);
       if (conflict) {
         setMessage(conflict);
         setDragState(null);
@@ -398,21 +407,47 @@ export function HorarioPage() {
       const assignmentId = await ensureAssignment(section, currentAula.id);
       const endMinutes = startMinutes + getDurationMinutes(section);
 
-      for (const plannedDay of plannedDays) {
+      if (autoCompleteEnabled) {
+        const sortedExistingSessions = [...existingSessions].sort((left, right) => left.id - right.id);
+
+        for (const [index, plannedDay] of plannedDays.entries()) {
+          const existingSession = sortedExistingSessions[index];
+          const payload = {
+            dia: dayKeyToApiValue(plannedDay),
+            hora_inicio: toTimeString(startMinutes),
+            hora_fin: toTimeString(endMinutes),
+            generado_automaticamente: plannedDays.length > 1,
+          };
+
+          if (existingSession) {
+            await updateSession(existingSession.id, payload);
+            continue;
+          }
+
+          await createSession({
+            id_asignacion: assignmentId,
+            ...payload,
+          });
+        }
+
+        for (const extraSession of sortedExistingSessions.slice(plannedDays.length)) {
+          await deleteSession(extraSession.id);
+        }
+
+        await refreshAfterMutation(
+          `${section.code} se reorganizo desde ${dayKeyToLabel(day)} ${minutesToHourLabel(startMinutes)} en ${plannedDays.length} dia(s).`,
+        );
+      } else {
         await createSession({
           id_asignacion: assignmentId,
-          dia: dayKeyToApiValue(plannedDay),
+          dia: dayKeyToApiValue(day),
           hora_inicio: toTimeString(startMinutes),
           hora_fin: toTimeString(endMinutes),
-          generado_automaticamente: autoCompleteEnabled && plannedDays.length > 1,
+          generado_automaticamente: false,
         });
-      }
 
-      await refreshAfterMutation(
-        autoCompleteEnabled && plannedDays.length > 1
-          ? `${section.code} se autocompleto en ${plannedDays.length} dia(s) de la semana.`
-          : `${section.code} se programo en ${currentAula.code}.`,
-      );
+        await refreshAfterMutation(`${section.code} agrego un bloque en ${dayKeyToLabel(day)} ${minutesToHourLabel(startMinutes)}.`);
+      }
     } catch (mutationError) {
       setMessage(getErrorMessage(mutationError));
     } finally {
@@ -439,7 +474,7 @@ export function HorarioPage() {
       return;
     }
 
-    const conflict = findConflict(section, currentAula, day, startMinutes, sessionId);
+    const conflict = findConflict(section, currentAula, day, startMinutes, [sessionId]);
     if (conflict) {
       setMessage(conflict);
       setDragState(null);
@@ -560,50 +595,6 @@ export function HorarioPage() {
             <strong>Secciones de esta aula</strong>
             <span>{roomSections.length} asignadas · {currentRoomBlocks} bloques en este aula</span>
           </div>
-          {!loading && roomSections.length ? (
-            <div className="assigned-section-list">
-              {roomSections.map(({ assignment, section, scheduleSummary, sessionCount }) => (
-                <article
-                  key={assignment.id}
-                  draggable={!saving}
-                  onDragStart={() => {
-                    const assignmentSessions = sessionsByAssignmentId.get(assignment.id) ?? [];
-                    const firstSession = assignmentSessions[0];
-                    if (firstSession) {
-                      setDragState({
-                        kind: 'session',
-                        sessionId: firstSession.id,
-                        assignmentId: assignment.id,
-                        sectionId: section.id,
-                      });
-                      return;
-                    }
-
-                    setDragState({
-                      kind: 'section',
-                      sectionId: section.id,
-                    });
-                  }}
-                  onDragEnd={() => {
-                    setDragState(null);
-                    setDropState(null);
-                  }}
-                  className={`mini-card assigned ${areaColor(section.areaKey)}`}
-                >
-                  <strong>{section.code}</strong>
-                  <span>{section.name}</span>
-                  <small>{section.teacherName}</small>
-                  <div className={`mini-pill ${areaColor(section.areaKey)}`}>{section.areaLabel}</div>
-                  <small>{scheduleSummary}</small>
-                  <small>Bloques: {sessionCount}/{section.weeklySessionsTarget} · Matricula: {assignment.students}</small>
-                  <small>Duracion: {getDurationBlocks(section)} hora(s) academica(s)</small>
-                </article>
-              ))}
-            </div>
-          ) : null}
-          {!loading && !roomSections.length ? (
-            <p className="sidebar-note">Esta aula aun no tiene secciones asignadas o sus asignaciones no tienen horario creado.</p>
-          ) : null}
           <div className="filter-row wrap">
             {scheduleSectionFilters.map((filter) => (
               <button
@@ -618,8 +609,45 @@ export function HorarioPage() {
           </div>
           <p className={`feedback ${error ? 'error' : ''}`}>{error ?? message}</p>
           {loading ? <p className="sidebar-note">Cargando datos del backend...</p> : null}
+          {!loading && roomSections.length ? (
+              <div className="assigned-section-list">
+                {roomSections.map(({ assignment, section, scheduleSummary, sessionCount, isComplete }) => (
+                    <article
+                        key={assignment.id}
+                        draggable={!saving && !isComplete}
+                        onDragStart={() => {
+                          if (saving || isComplete) {
+                            return;
+                          }
+
+                          setDragState({
+                            kind: 'section',
+                            sectionId: section.id,
+                          });
+                        }}
+                        onDragEnd={() => {
+                          setDragState(null);
+                          setDropState(null);
+                        }}
+                        className={`mini-card assigned ${areaColor(section.areaKey)} ${isComplete ? 'disabled' : ''}`}
+                    >
+                      <strong>{section.code}</strong>
+                      <span>{section.name}</span>
+                      <small>{section.teacherName}</small>
+                      <div className={`mini-pill ${areaColor(section.areaKey)}`}>{section.areaLabel}</div>
+                      <small>{scheduleSummary}</small>
+                      <small>Bloques: {sessionCount}/{section.weeklySessionsTarget} · Matricula: {assignment.students}</small>
+                      <small>Duracion: {getDurationBlocks(section)} hora(s) academica(s)</small>
+                      {isComplete ? <small>Seccion completa en horario</small> : null}
+                    </article>
+                ))}
+              </div>
+          ) : null}
+          {!loading && !roomSections.length ? (
+              <p className="sidebar-note">Esta aula aun no tiene secciones asignadas o sus asignaciones no tienen horario creado.</p>
+          ) : null}
           <p className="sidebar-note">
-            Solo se muestran las secciones ya asignadas a esta aula. Con autocompletar activo, la primera sesion replica el resto de la semana; apagado, debes arrastrar hora por hora.
+            Solo se muestran las secciones ya asignadas a esta aula. Si autocompletar esta activo, arrastrar desde este panel reorganiza toda la seccion desde ese nuevo punto; apagado, agrega solo un bloque. Para mover un bloque puntual, arrastralo desde el calendario.
           </p>
         </aside>
 
@@ -656,7 +684,7 @@ export function HorarioPage() {
                               currentAula,
                               day.key,
                               slot.minutes,
-                              dragState.kind === 'session' ? dragState.sessionId : undefined,
+                              dragState.kind === 'session' ? [dragState.sessionId] : [],
                             )
                           : null;
                       })()

@@ -185,6 +185,12 @@ button,input{font:inherit}
   margin:10px 8px 0;padding:12px 14px;position:relative;min-height:116px
 }
 .mini-card.assigned{background:#f8fbff}
+.mini-card.disabled{
+  opacity:.52;filter:saturate(.45);cursor:not-allowed
+}
+.mini-card.disabled .mini-pill{
+  opacity:.7
+}
 .mini-card::before{content:'';position:absolute;left:0;top:0;width:4px;bottom:0;border-radius:14px 0 0 14px;background:#f59e0b}
 .mini-card.blue::before{background:#3b82f6}
 .mini-card.green::before{background:#22c55e}
