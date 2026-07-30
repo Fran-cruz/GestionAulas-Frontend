@@ -174,7 +174,7 @@ export function DocentesPage() {
                         <button className="edit-btn" onClick={() => openEditModal(docente)}>
                           Editar
                         </button>
-                        <button className="delete-btn" onClick={() => handleDelete(docente)}>
+                        <button className="edit-btn" onClick={() => handleDelete(docente)}>
                           Eliminar
                         </button>
                       </td>
