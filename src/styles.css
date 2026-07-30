@@ -160,7 +160,18 @@ button,input{font:inherit}
 }
 .week-box strong{font-size:.96rem;color:#253042}
 .week-box span{font-size:.83rem;color:#64748b}
-.week-box button{border:0;background:#edf1f7;color:#6b7688;width:48px;height:100%;font-size:1.4rem}
+.autocomplete-box{
+  flex-direction:row;align-items:center;justify-content:space-between;gap:14px
+}
+.autocomplete-copy{
+  display:flex;flex-direction:column;gap:4px
+}
+.autocomplete-copy small{
+  color:#64748b;font-size:.82rem;line-height:1.35
+}
+.autocomplete-box input{
+  width:18px;height:18px;accent-color:#2f6bf3;cursor:pointer;flex:0 0 auto
+}
 .availability{background:#e4f9e7;color:#16a34a;font-weight:700;justify-content:center;align-items:flex-start;flex-direction:column;gap:4px}
 .availability span{font-size:.82rem;text-transform:uppercase;letter-spacing:.04em}
 .availability strong{font-size:1.02rem}

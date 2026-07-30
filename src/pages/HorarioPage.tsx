@@ -37,7 +37,6 @@ type DropState = {
 
 const timeSlots = buildTimeSlots();
 const slotHeight = 56;
-const today = new Date();
 const academicHourMinutes = 60;
 const academicVisibleMinutes = 50;
 
@@ -77,51 +76,33 @@ function getErrorMessage(error: unknown) {
   return 'Ocurrio un error inesperado.';
 }
 
-function startOfWeek(date: Date) {
-  const next = new Date(date);
-  const day = next.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  next.setDate(next.getDate() + diff);
-  next.setHours(0, 0, 0, 0);
-  return next;
-}
+function getAutoCompleteDays(anchorDay: ScheduleDayKey, sessionsPerWeek: number): ScheduleDayKey[] {
+  const alternatingEngineeringDays: ScheduleDayKey[] = ['mon', 'wed', 'fri'];
+  const alternatingTuesdayDays: ScheduleDayKey[] = ['tue', 'thu', 'sat'];
 
-function addDays(date: Date, days: number) {
-  const next = new Date(date);
-  next.setDate(next.getDate() + days);
-  return next;
-}
-
-function toShortMonthDay(date: Date) {
-  return new Intl.DateTimeFormat('es-HN', {
-    month: 'short',
-    day: 'numeric',
-  }).format(date);
-}
-
-function buildWeekLabel(activePeriod: ScheduleSnapshot['activePeriod']) {
-  if (!activePeriod) {
-    return {
-      title: 'Sin periodo activo',
-      subtitle: 'No hay fechas disponibles',
-    };
+  if (sessionsPerWeek <= 1) {
+    return [anchorDay];
   }
 
-  const periodStart = new Date(activePeriod.startDate);
-  const periodEnd = new Date(activePeriod.endDate);
-  const boundedToday = today < periodStart ? periodStart : today > periodEnd ? periodEnd : today;
-  const weekStart = startOfWeek(boundedToday);
-  const weekEnd = addDays(weekStart, 5);
-  const referenceStart = startOfWeek(periodStart);
-  const weekNumber = Math.max(
-    1,
-    Math.floor((weekStart.getTime() - referenceStart.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1,
-  );
+  if (sessionsPerWeek >= 5) {
+    return ['mon', 'tue', 'wed', 'thu', 'fri'];
+  }
 
-  return {
-    title: `Semana ${weekNumber}`,
-    subtitle: `${toShortMonthDay(weekStart)} - ${toShortMonthDay(weekEnd)}`,
-  };
+  if (sessionsPerWeek === 4) {
+    return ['mon', 'tue', 'wed', 'thu'];
+  }
+
+  const family = alternatingEngineeringDays.includes(anchorDay)
+    ? alternatingEngineeringDays
+    : alternatingTuesdayDays;
+
+  if (sessionsPerWeek === 3) {
+    return family;
+  }
+
+  const anchorIndex = family.indexOf(anchorDay);
+  const startIndex = anchorIndex >= family.length - 1 ? family.length - 2 : Math.max(0, anchorIndex);
+  return family.slice(startIndex, startIndex + 2);
 }
 
 export function HorarioPage() {
@@ -134,6 +115,7 @@ export function HorarioPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [autoCompleteEnabled, setAutoCompleteEnabled] = useState(true);
 
   const loadSnapshot = async (options?: { silent?: boolean; keepMessage?: boolean }) => {
     if (!options?.silent) {
@@ -227,7 +209,6 @@ export function HorarioPage() {
   }, [sessions]);
 
   const currentAula = rooms.find((room) => room.id === selectedAula) ?? null;
-  const weekLabel = buildWeekLabel(activePeriod);
 
   const roomAssignments = useMemo(() => {
     if (!currentAula) {
@@ -389,14 +370,6 @@ export function HorarioPage() {
       return;
     }
 
-    const conflict = findConflict(section, currentAula, day, startMinutes);
-    if (conflict) {
-      setMessage(conflict);
-      setDragState(null);
-      setDropState(null);
-      return;
-    }
-
     const existingAssignment = assignmentBySectionId.get(section.id);
     const existingSessions = existingAssignment ? sessionsByAssignmentId.get(existingAssignment.id) ?? [] : [];
     if (existingSessions.length >= section.weeklySessionsTarget) {
@@ -406,19 +379,40 @@ export function HorarioPage() {
       return;
     }
 
+    const plannedDays = autoCompleteEnabled && existingSessions.length === 0
+      ? getAutoCompleteDays(day, section.weeklySessionsTarget)
+      : [day];
+
+    for (const plannedDay of plannedDays) {
+      const conflict = findConflict(section, currentAula, plannedDay, startMinutes);
+      if (conflict) {
+        setMessage(conflict);
+        setDragState(null);
+        setDropState(null);
+        return;
+      }
+    }
+
     setSaving(true);
     try {
       const assignmentId = await ensureAssignment(section, currentAula.id);
       const endMinutes = startMinutes + getDurationMinutes(section);
 
-      await createSession({
-        id_asignacion: assignmentId,
-        dia: dayKeyToApiValue(day),
-        hora_inicio: toTimeString(startMinutes),
-        hora_fin: toTimeString(endMinutes),
-      });
+      for (const plannedDay of plannedDays) {
+        await createSession({
+          id_asignacion: assignmentId,
+          dia: dayKeyToApiValue(plannedDay),
+          hora_inicio: toTimeString(startMinutes),
+          hora_fin: toTimeString(endMinutes),
+          generado_automaticamente: autoCompleteEnabled && plannedDays.length > 1,
+        });
+      }
 
-      await refreshAfterMutation(`${section.code} se programo en ${currentAula.code}.`);
+      await refreshAfterMutation(
+        autoCompleteEnabled && plannedDays.length > 1
+          ? `${section.code} se autocompleto en ${plannedDays.length} dia(s) de la semana.`
+          : `${section.code} se programo en ${currentAula.code}.`,
+      );
     } catch (mutationError) {
       setMessage(getErrorMessage(mutationError));
     } finally {
@@ -532,10 +526,22 @@ export function HorarioPage() {
         <div className="search-box narrow">
           {currentAula ? `${currentAula.building} piso ${currentAula.floor}` : 'Sin aula seleccionada'}
         </div>
-        <div className="week-box">
-          <strong>{weekLabel.title}</strong>
-          <span>{weekLabel.subtitle}</span>
-        </div>
+        <label className="week-box autocomplete-box">
+          <span className="autocomplete-copy">
+            <strong>Autocompletar semana</strong>
+            <small>
+              {autoCompleteEnabled
+                ? 'Replica segun dias por semana y duracion.'
+                : 'Desactivado: arrastra bloque por bloque.'}
+            </small>
+          </span>
+          <input
+            type="checkbox"
+            checked={autoCompleteEnabled}
+            onChange={(event) => setAutoCompleteEnabled(event.target.checked)}
+            disabled={saving}
+          />
+        </label>
         <div className="availability">
           <span>{currentAula?.maintenance ? 'Mantenimiento' : 'Disponible'}</span>
           <strong>{currentAula ? `${Math.max(0, 100 - occupancy.percent)}% libre` : '0% libre'}</strong>
@@ -612,7 +618,9 @@ export function HorarioPage() {
           </div>
           <p className={`feedback ${error ? 'error' : ''}`}>{error ?? message}</p>
           {loading ? <p className="sidebar-note">Cargando datos del backend...</p> : null}
-          <p className="sidebar-note">Solo se muestran las secciones ya asignadas a esta aula. Si una seccion no tiene horario, arrastra su tarjeta al calendario; si ya tiene bloques, puedes moverlos desde el calendario.</p>
+          <p className="sidebar-note">
+            Solo se muestran las secciones ya asignadas a esta aula. Con autocompletar activo, la primera sesion replica el resto de la semana; apagado, debes arrastrar hora por hora.
+          </p>
         </aside>
 
         <div className="calendar">
