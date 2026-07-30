@@ -38,6 +38,8 @@ type DropState = {
 const timeSlots = buildTimeSlots();
 const slotHeight = 56;
 const today = new Date();
+const academicHourMinutes = 60;
+const academicVisibleMinutes = 50;
 
 function areaColor(area: ScheduleAreaKey) {
   if (area === 'ing') return 'blue';
@@ -51,9 +53,16 @@ function overlap(startA: number, endA: number, startB: number, endB: number) {
   return startA < endB && startB < endA;
 }
 
+function getDurationBlocks(section: ScheduleSection) {
+  return Math.max(1, Math.round(section.durationHours) || 1);
+}
+
 function getDurationMinutes(section: ScheduleSection) {
-  const rounded = Math.round(section.durationHours * 60);
-  return Math.max(30, rounded || 60);
+  return getDurationBlocks(section) * academicHourMinutes - (academicHourMinutes - academicVisibleMinutes);
+}
+
+function getSessionBlockSpan(startMinutes: number, endMinutes: number) {
+  return Math.max(1, Math.round((endMinutes - startMinutes + (academicHourMinutes - academicVisibleMinutes)) / academicHourMinutes));
 }
 
 function getErrorMessage(error: unknown) {
@@ -309,7 +318,7 @@ export function HorarioPage() {
       return `La capacidad de ${room.code} es menor que la matricula registrada.`;
     }
 
-    if (endMinutes > 19 * 60) {
+    if (endMinutes > 18 * 60 + academicVisibleMinutes) {
       return 'La sesion excede el rango visible del horario.';
     }
 
@@ -581,6 +590,7 @@ export function HorarioPage() {
                   <div className={`mini-pill ${areaColor(section.areaKey)}`}>{section.areaLabel}</div>
                   <small>{scheduleSummary}</small>
                   <small>Bloques: {sessionCount}/{section.weeklySessionsTarget} · Matricula: {assignment.students}</small>
+                  <small>Duracion: {getDurationBlocks(section)} hora(s) academica(s)</small>
                 </article>
               ))}
             </div>
@@ -618,7 +628,7 @@ export function HorarioPage() {
 
           {timeSlots.map((slot) => (
             <div key={slot.minutes} className="calendar-row">
-              <div className="time-cell">{slot.shortLabel || '·'}</div>
+              <div className="time-cell">{slot.shortLabel}</div>
               {scheduleDays.map((day) => {
                 const dayBlocks = weeklyBlocks.get(day.key) ?? [];
                 const block = dayBlocks.find((item) => item.startMinutes === slot.minutes);
@@ -645,7 +655,7 @@ export function HorarioPage() {
                     : null;
 
                 const eventHeight = block && section
-                  ? Math.max(slotHeight - 10, Math.ceil((block.endMinutes - block.startMinutes) / 30) * slotHeight - 10)
+                  ? Math.max(slotHeight - 10, getSessionBlockSpan(block.startMinutes, block.endMinutes) * slotHeight - 10)
                   : slotHeight - 10;
 
                 return (

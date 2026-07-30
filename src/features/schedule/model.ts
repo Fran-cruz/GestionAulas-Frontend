@@ -208,14 +208,14 @@ export function minutesToHourLabel(totalMinutes: number) {
   return toTimeString(totalMinutes);
 }
 
-export function buildTimeSlots(startHour = 7, endHour = 19, stepMinutes = 30) {
+export function buildTimeSlots(startHour = 7, endHour = 19, stepMinutes = 60) {
   const slots: Array<{ minutes: number; label: string; shortLabel: string }> = [];
 
   for (let minutes = startHour * 60; minutes < endHour * 60; minutes += stepMinutes) {
     slots.push({
       minutes,
       label: toTimeString(minutes),
-      shortLabel: minutes % 60 === 0 ? toTimeString(minutes) : '',
+      shortLabel: toTimeString(minutes),
     });
   }
 
