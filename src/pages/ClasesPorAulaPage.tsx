@@ -139,6 +139,12 @@ export function ClasesPorAulaPage() {
     }
 
     const existing = assignmentBySectionId.get(section.id);
+
+    if (existing?.roomId === room.id) {
+      setMessage(`${section.name} ya está en ${room.code}.`);
+      return;
+    }
+
     const enrolled = existing?.students ?? 0;
 
     if (enrolled > room.capacity && !existing?.overCapacityConfirmed) {
@@ -165,7 +171,9 @@ export function ClasesPorAulaPage() {
       }
 
       await loadSnapshot({ silent: true, keepMessage: true });
-      setMessage(`${section.name} asignada a ${room.code}.`);
+      setMessage(
+          existing ? `${section.name} se movió a ${room.code}.` : `${section.name} asignada a ${room.code}.`,
+      );
     } catch (err) {
       setMessage(getErrorMessage(err));
     } finally {
@@ -284,7 +292,13 @@ export function ClasesPorAulaPage() {
                       const section = sectionIndex.get(a.sectionId);
                       if (!section) return null;
                       return (
-                          <article key={a.id} className={`room-card ${areaColorClass(section.areaKey)}`}>
+                          <article
+                              key={a.id}
+                              draggable
+                              onDragStart={() => setDraggingId(section.id)}
+                              onDragEnd={() => setDraggingId(null)}
+                              className={`room-card ${areaColorClass(section.areaKey)} ${draggingId === section.id ? 'dragging' : ''}`}
+                          >
                             <div className="subject-tag">{section.areaLabel}</div>
                             <strong>{section.code}</strong>
                             <span>{section.name}</span>
