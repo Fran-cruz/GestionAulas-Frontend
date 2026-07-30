@@ -146,10 +146,19 @@ export function ClasesPorAulaPage() {
     }
 
     const enrolled = existing?.students ?? 0;
+    let overCapacityConfirmed = existing?.overCapacityConfirmed ?? false;
 
-    if (enrolled > room.capacity && !existing?.overCapacityConfirmed) {
-      setMessage(`No se puede asignar ${section.name}: capacidad excedida en ${room.code}.`);
-      return;
+    if (enrolled > room.capacity && !overCapacityConfirmed) {
+      const proceed = window.confirm(
+          `${section.name} tiene ${enrolled} alumnos y ${room.code} tiene capacidad para ${room.capacity}.\n¿Moverla de todas formas (sobrecupo)?`,
+      );
+
+      if (!proceed) {
+        setMessage(`Movimiento cancelado: capacidad excedida en ${room.code}.`);
+        return;
+      }
+
+      overCapacityConfirmed = true;
     }
 
     if (!existing && !activePeriod) {
@@ -160,13 +169,17 @@ export function ClasesPorAulaPage() {
     setSaving(true);
     try {
       if (existing) {
-        await updateAssignment(existing.id, { id_aula: room.id });
+        await updateAssignment(existing.id, {
+          id_aula: room.id,
+          sobrecargo_confirmado: overCapacityConfirmed,
+        });
       } else {
         await createAssignment({
           id_seccion: section.id,
           id_periodo: activePeriod!.id,
           id_aula: room.id,
           id_docente: section.teacherId,
+          sobrecargo_confirmado: overCapacityConfirmed,
         });
       }
 
@@ -175,7 +188,7 @@ export function ClasesPorAulaPage() {
           existing ? `${section.name} se movió a ${room.code}.` : `${section.name} asignada a ${room.code}.`,
       );
     } catch (err) {
-      setMessage(getErrorMessage(err));
+      setMessage(`⚠️ ${getErrorMessage(err)}`);
     } finally {
       setSaving(false);
     }
@@ -219,7 +232,7 @@ export function ClasesPorAulaPage() {
                 </button>
             ))}
           </div>
-          <p className="feedback">{saving ? 'Guardando…' : message}</p>
+          <p className={`feedback ${message.startsWith('⚠️') ? 'error' : ''}`}>{saving ? 'Guardando…' : message}</p>
           <div className="stack">
             {filteredSections.map((item) => (
                 <article
