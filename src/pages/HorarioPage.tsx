@@ -201,12 +201,6 @@ export function HorarioPage() {
     return byDay;
   }, [roomAssignmentIds, sessions]);
 
-  const sidebarSections = useMemo(() => {
-    return sections
-      .filter((section) => sectionFilter === 'all' || section.areaKey === sectionFilter)
-      .sort((left, right) => left.name.localeCompare(right.name));
-  }, [sectionFilter, sections]);
-
   const roomSections = useMemo(() => {
     return roomAssignments
       .map((assignment) => {
@@ -228,14 +222,9 @@ export function HorarioPage() {
         };
       })
       .filter((item): item is NonNullable<typeof item> => item !== null)
+      .filter((item) => sectionFilter === 'all' || item.section.areaKey === sectionFilter)
       .sort((left, right) => left.section.name.localeCompare(right.section.name));
-  }, [roomAssignments, sectionIndex, sessionsByAssignmentId]);
-
-  const availableSections = useMemo(() => {
-    const currentRoomSectionIds = new Set(roomAssignments.map((assignment) => assignment.sectionId));
-
-    return sidebarSections.filter((section) => !currentRoomSectionIds.has(section.id));
-  }, [roomAssignments, sidebarSections]);
+  }, [roomAssignments, sectionFilter, sectionIndex, sessionsByAssignmentId]);
 
   const occupancy = useMemo(() => {
     if (!currentAula) {
@@ -510,7 +499,29 @@ export function HorarioPage() {
           {!loading && roomSections.length ? (
             <div className="assigned-section-list">
               {roomSections.map(({ assignment, section, scheduleSummary, sessionCount }) => (
-                <article key={assignment.id} className={`mini-card assigned ${areaColor(section.areaKey)}`}>
+                <article
+                  key={assignment.id}
+                  draggable={!saving}
+                  onDragStart={() => {
+                    const assignmentSessions = sessionsByAssignmentId.get(assignment.id) ?? [];
+                    const firstSession = assignmentSessions[0];
+                    if (!firstSession) {
+                      return;
+                    }
+
+                    setDragState({
+                      kind: 'session',
+                      sessionId: firstSession.id,
+                      assignmentId: assignment.id,
+                      sectionId: section.id,
+                    });
+                  }}
+                  onDragEnd={() => {
+                    setDragState(null);
+                    setDropState(null);
+                  }}
+                  className={`mini-card assigned ${areaColor(section.areaKey)}`}
+                >
                   <strong>{section.code}</strong>
                   <span>{section.name}</span>
                   <small>{section.teacherName}</small>
@@ -524,10 +535,6 @@ export function HorarioPage() {
           {!loading && !roomSections.length ? (
             <p className="sidebar-note">Esta aula aun no tiene secciones asignadas o sus asignaciones no tienen horario creado.</p>
           ) : null}
-          <div className="section-head dark compact secondary">
-            <strong>Secciones disponibles para programar</strong>
-            <span>{availableSections.length} visibles fuera de esta aula</span>
-          </div>
           <div className="filter-row wrap">
             {scheduleSectionFilters.map((filter) => (
               <button
@@ -542,40 +549,7 @@ export function HorarioPage() {
           </div>
           <p className={`feedback ${error ? 'error' : ''}`}>{error ?? message}</p>
           {loading ? <p className="sidebar-note">Cargando datos del backend...</p> : null}
-          {!loading && !availableSections.length ? (
-            <p className="sidebar-note">No hay secciones activas para programar.</p>
-          ) : null}
-          {!loading &&
-            availableSections.map((section) => {
-              const assignment = assignmentBySectionId.get(section.id);
-              const assignedSessions = assignment ? sessionsByAssignmentId.get(assignment.id)?.length ?? 0 : 0;
-              const canCreateAssignment = Boolean(activePeriod || assignment);
-
-              return (
-                <article
-                  key={section.id}
-                  draggable={!saving && canCreateAssignment}
-                  onDragStart={() => setDragState({ kind: 'section', sectionId: section.id })}
-                  onDragEnd={() => {
-                    setDragState(null);
-                    setDropState(null);
-                  }}
-                  className={`mini-card ${areaColor(section.areaKey)} ${dragState?.kind === 'section' && dragState.sectionId === section.id ? 'dragging' : ''}`}
-                >
-                  <strong>{section.code}</strong>
-                  <span>{section.name}</span>
-                  <small>{section.teacherName}</small>
-                  <div className={`mini-pill ${areaColor(section.areaKey)}`}>{section.areaLabel}</div>
-                  <small>{section.durationHours}h por sesion · {section.weeklySessionsTarget} bloque(s) por semana</small>
-                  <small>Matricula: {assignment?.students ?? 0} · Turno {section.shift}</small>
-                  <small>Bloques creados: {assignedSessions}/{section.weeklySessionsTarget}</small>
-                  {!canCreateAssignment ? <small>Requiere periodo activo para crear asignacion.</small> : null}
-                </article>
-              );
-            })}
-          <p className="sidebar-note">
-            Arrastra una seccion para crear un bloque nuevo. Arrastra un bloque existente para moverlo.
-          </p>
+          <p className="sidebar-note">Solo se muestran las secciones ya asignadas a esta aula. Arrastra un bloque del calendario para moverlo.</p>
         </aside>
 
         <div className="calendar">
