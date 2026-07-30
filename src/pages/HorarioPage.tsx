@@ -37,6 +37,7 @@ type DropState = {
 
 const timeSlots = buildTimeSlots();
 const slotHeight = 56;
+const today = new Date();
 
 function areaColor(area: ScheduleAreaKey) {
   if (area === 'ing') return 'blue';
@@ -65,6 +66,53 @@ function getErrorMessage(error: unknown) {
   }
 
   return 'Ocurrio un error inesperado.';
+}
+
+function startOfWeek(date: Date) {
+  const next = new Date(date);
+  const day = next.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  next.setDate(next.getDate() + diff);
+  next.setHours(0, 0, 0, 0);
+  return next;
+}
+
+function addDays(date: Date, days: number) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function toShortMonthDay(date: Date) {
+  return new Intl.DateTimeFormat('es-HN', {
+    month: 'short',
+    day: 'numeric',
+  }).format(date);
+}
+
+function buildWeekLabel(activePeriod: ScheduleSnapshot['activePeriod']) {
+  if (!activePeriod) {
+    return {
+      title: 'Sin periodo activo',
+      subtitle: 'No hay fechas disponibles',
+    };
+  }
+
+  const periodStart = new Date(activePeriod.startDate);
+  const periodEnd = new Date(activePeriod.endDate);
+  const boundedToday = today < periodStart ? periodStart : today > periodEnd ? periodEnd : today;
+  const weekStart = startOfWeek(boundedToday);
+  const weekEnd = addDays(weekStart, 5);
+  const referenceStart = startOfWeek(periodStart);
+  const weekNumber = Math.max(
+    1,
+    Math.floor((weekStart.getTime() - referenceStart.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1,
+  );
+
+  return {
+    title: `Semana ${weekNumber}`,
+    subtitle: `${toShortMonthDay(weekStart)} - ${toShortMonthDay(weekEnd)}`,
+  };
 }
 
 export function HorarioPage() {
@@ -170,6 +218,7 @@ export function HorarioPage() {
   }, [sessions]);
 
   const currentAula = rooms.find((room) => room.id === selectedAula) ?? null;
+  const weekLabel = buildWeekLabel(activePeriod);
 
   const roomAssignments = useMemo(() => {
     if (!currentAula) {
@@ -475,8 +524,8 @@ export function HorarioPage() {
           {currentAula ? `${currentAula.building} piso ${currentAula.floor}` : 'Sin aula seleccionada'}
         </div>
         <div className="week-box">
-          <strong>{activePeriod?.name ?? 'Sin periodo activo'}</strong>
-          <span>{activePeriod ? `${activePeriod.startDate} a ${activePeriod.endDate}` : 'Vista de solo lectura para asignaciones nuevas'}</span>
+          <strong>{weekLabel.title}</strong>
+          <span>{weekLabel.subtitle}</span>
         </div>
         <div className="availability">
           <span>{currentAula?.maintenance ? 'Mantenimiento' : 'Disponible'}</span>
