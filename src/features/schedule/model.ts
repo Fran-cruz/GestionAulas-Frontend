@@ -138,13 +138,13 @@ export type ScheduleSnapshot = {
   activePeriod: SchedulePeriod | null;
 };
 
-export const scheduleDays: Array<{ key: ScheduleDayKey; apiValue: ApiSesionHorario['dia']; label: string; short: string }> = [
-  { key: 'mon', apiValue: 'lunes', label: 'Lunes', short: 'Lun' },
-  { key: 'tue', apiValue: 'martes', label: 'Martes', short: 'Mar' },
-  { key: 'wed', apiValue: 'miercoles', label: 'Miercoles', short: 'Mie' },
-  { key: 'thu', apiValue: 'jueves', label: 'Jueves', short: 'Jue' },
-  { key: 'fri', apiValue: 'viernes', label: 'Viernes', short: 'Vie' },
-  { key: 'sat', apiValue: 'sabado', label: 'Sabado', short: 'Sab' },
+export const scheduleDays: Array<{ key: ScheduleDayKey; apiValue: string; label: string; short: string }> = [
+  { key: 'mon', apiValue: 'LUNES', label: 'Lunes', short: 'Lun' },
+  { key: 'tue', apiValue: 'MARTES', label: 'Martes', short: 'Mar' },
+  { key: 'wed', apiValue: 'MIERCOLES', label: 'Miercoles', short: 'Mie' },
+  { key: 'thu', apiValue: 'JUEVES', label: 'Jueves', short: 'Jue' },
+  { key: 'fri', apiValue: 'VIERNES', label: 'Viernes', short: 'Vie' },
+  { key: 'sat', apiValue: 'SABADO', label: 'Sabado', short: 'Sab' },
 ];
 
 export const scheduleSectionFilters: Array<{ value: 'all' | ScheduleAreaKey; label: string }> = [
@@ -223,7 +223,7 @@ export function buildTimeSlots(startHour = 7, endHour = 19, stepMinutes = 30) {
 }
 
 export function dayKeyToApiValue(dayKey: ScheduleDayKey) {
-  return scheduleDays.find((day) => day.key === dayKey)?.apiValue ?? 'lunes';
+  return scheduleDays.find((day) => day.key === dayKey)?.apiValue ?? 'LUNES';
 }
 
 export function dayKeyToLabel(dayKey: ScheduleDayKey) {

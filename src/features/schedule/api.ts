@@ -22,7 +22,7 @@ export type AssignmentMutationPayload = {
 
 export type SessionMutationPayload = {
   id_asignacion: number;
-  dia: ApiSesionHorario['dia'];
+  dia: string;
   hora_inicio: string;
   hora_fin: string;
   generado_automaticamente?: boolean;
