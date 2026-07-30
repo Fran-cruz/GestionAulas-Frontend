@@ -48,23 +48,27 @@ export async function fetchScheduleSnapshot(): Promise<ScheduleSnapshot> {
   });
 }
 
-export function createAssignment(payload: AssignmentMutationPayload) {
-  return apiRequest<ApiAsignacion>('/asignaciones', {
+export async function createAssignment(payload: AssignmentMutationPayload) {
+  const response = await apiRequest<{ message: string; asignacion: ApiAsignacion }>('/asignaciones', {
     method: 'POST',
     body: JSON.stringify({
       estudiantes_matriculados: 0,
       sobrecargo_confirmado: false,
-      estado: 'asignada',
+      estado: 'ASIGNADA',
       ...payload,
     }),
   });
+
+  return response.asignacion;
 }
 
-export function updateAssignment(id: number, payload: Partial<AssignmentMutationPayload>) {
-  return apiRequest<ApiAsignacion>(`/asignaciones/${id}`, {
+export async function updateAssignment(id: number, payload: Partial<AssignmentMutationPayload>) {
+  const response = await apiRequest<{ message: string; asignacion: ApiAsignacion }>(`/asignaciones/${id}`, {
     method: 'PATCH',
     body: JSON.stringify(payload),
   });
+
+  return response.asignacion;
 }
 
 export function createSession(payload: SessionMutationPayload) {
