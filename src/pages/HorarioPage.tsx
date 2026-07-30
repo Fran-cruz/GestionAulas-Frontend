@@ -554,14 +554,18 @@ export function HorarioPage() {
                   onDragStart={() => {
                     const assignmentSessions = sessionsByAssignmentId.get(assignment.id) ?? [];
                     const firstSession = assignmentSessions[0];
-                    if (!firstSession) {
+                    if (firstSession) {
+                      setDragState({
+                        kind: 'session',
+                        sessionId: firstSession.id,
+                        assignmentId: assignment.id,
+                        sectionId: section.id,
+                      });
                       return;
                     }
 
                     setDragState({
-                      kind: 'session',
-                      sessionId: firstSession.id,
-                      assignmentId: assignment.id,
+                      kind: 'section',
                       sectionId: section.id,
                     });
                   }}
@@ -598,7 +602,7 @@ export function HorarioPage() {
           </div>
           <p className={`feedback ${error ? 'error' : ''}`}>{error ?? message}</p>
           {loading ? <p className="sidebar-note">Cargando datos del backend...</p> : null}
-          <p className="sidebar-note">Solo se muestran las secciones ya asignadas a esta aula. Arrastra un bloque del calendario para moverlo.</p>
+          <p className="sidebar-note">Solo se muestran las secciones ya asignadas a esta aula. Si una seccion no tiene horario, arrastra su tarjeta al calendario; si ya tiene bloques, puedes moverlos desde el calendario.</p>
         </aside>
 
         <div className="calendar">
