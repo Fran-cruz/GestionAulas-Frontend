@@ -207,6 +207,36 @@ export function HorarioPage() {
       .sort((left, right) => left.name.localeCompare(right.name));
   }, [sectionFilter, sections]);
 
+  const roomSections = useMemo(() => {
+    return roomAssignments
+      .map((assignment) => {
+        const section = sectionIndex.get(assignment.sectionId);
+        if (!section) {
+          return null;
+        }
+
+        const assignmentSessions = sessionsByAssignmentId.get(assignment.id) ?? [];
+        const scheduleSummary = assignmentSessions.length
+          ? assignmentSessions.map((session) => `${session.dayLabel} ${session.startTime}-${session.endTime}`).join(' · ')
+          : 'Sin horario';
+
+        return {
+          assignment,
+          section,
+          scheduleSummary,
+          sessionCount: assignmentSessions.length,
+        };
+      })
+      .filter((item): item is NonNullable<typeof item> => item !== null)
+      .sort((left, right) => left.section.name.localeCompare(right.section.name));
+  }, [roomAssignments, sectionIndex, sessionsByAssignmentId]);
+
+  const availableSections = useMemo(() => {
+    const currentRoomSectionIds = new Set(roomAssignments.map((assignment) => assignment.sectionId));
+
+    return sidebarSections.filter((section) => !currentRoomSectionIds.has(section.id));
+  }, [roomAssignments, sidebarSections]);
+
   const occupancy = useMemo(() => {
     if (!currentAula) {
       return { students: 0, percent: 0 };
@@ -474,8 +504,29 @@ export function HorarioPage() {
       <div className="schedule-grid">
         <aside className="schedule-sidebar">
           <div className="section-head dark compact">
-            <strong>Secciones Programables</strong>
-            <span>{sidebarSections.length} visibles · {currentRoomBlocks} bloques en este aula</span>
+            <strong>Secciones de esta aula</strong>
+            <span>{roomSections.length} asignadas · {currentRoomBlocks} bloques en este aula</span>
+          </div>
+          {!loading && roomSections.length ? (
+            <div className="assigned-section-list">
+              {roomSections.map(({ assignment, section, scheduleSummary, sessionCount }) => (
+                <article key={assignment.id} className={`mini-card assigned ${areaColor(section.areaKey)}`}>
+                  <strong>{section.code}</strong>
+                  <span>{section.name}</span>
+                  <small>{section.teacherName}</small>
+                  <div className={`mini-pill ${areaColor(section.areaKey)}`}>{section.areaLabel}</div>
+                  <small>{scheduleSummary}</small>
+                  <small>Bloques: {sessionCount}/{section.weeklySessionsTarget} · Matricula: {assignment.students}</small>
+                </article>
+              ))}
+            </div>
+          ) : null}
+          {!loading && !roomSections.length ? (
+            <p className="sidebar-note">Esta aula aun no tiene secciones asignadas o sus asignaciones no tienen horario creado.</p>
+          ) : null}
+          <div className="section-head dark compact secondary">
+            <strong>Secciones disponibles para programar</strong>
+            <span>{availableSections.length} visibles fuera de esta aula</span>
           </div>
           <div className="filter-row wrap">
             {scheduleSectionFilters.map((filter) => (
@@ -491,11 +542,11 @@ export function HorarioPage() {
           </div>
           <p className={`feedback ${error ? 'error' : ''}`}>{error ?? message}</p>
           {loading ? <p className="sidebar-note">Cargando datos del backend...</p> : null}
-          {!loading && !sidebarSections.length ? (
+          {!loading && !availableSections.length ? (
             <p className="sidebar-note">No hay secciones activas para programar.</p>
           ) : null}
           {!loading &&
-            sidebarSections.map((section) => {
+            availableSections.map((section) => {
               const assignment = assignmentBySectionId.get(section.id);
               const assignedSessions = assignment ? sessionsByAssignmentId.get(assignment.id)?.length ?? 0 : 0;
               const canCreateAssignment = Boolean(activePeriod || assignment);

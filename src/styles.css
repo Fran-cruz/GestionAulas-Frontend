@@ -170,12 +170,17 @@ button,input{font:inherit}
 .schedule-grid{display:grid;grid-template-columns:230px 1fr;min-height:820px}
 .schedule-sidebar{background:#fff;border-right:1px solid #dfe6f1}
 .section-head.compact{padding:10px 12px}
+.section-head.secondary{margin-top:8px;border-top:1px solid rgba(255,255,255,.08)}
+.assigned-section-list{padding:0 8px 4px}
 .mini-card{
   margin:10px 8px 0;padding:12px 14px;position:relative;min-height:116px
 }
+.mini-card.assigned{background:#f8fbff}
 .mini-card::before{content:'';position:absolute;left:0;top:0;width:4px;bottom:0;border-radius:14px 0 0 14px;background:#f59e0b}
 .mini-card.blue::before{background:#3b82f6}
 .mini-card.green::before{background:#22c55e}
+.mini-card.purple::before{background:#a855f7}
+.mini-card.gray::before{background:#64748b}
 .mini-card strong{display:block;font-size:1rem}
 .mini-card span,.mini-card small{display:block;color:#66748a}
 .mini-pill{
