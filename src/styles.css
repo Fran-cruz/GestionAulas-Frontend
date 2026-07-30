@@ -87,9 +87,7 @@ button,input{font:inherit}
 .subject-card,.mini-card,.room-card,.event{
   background:#fff;border:1px solid #d9e2ef;border-radius:14px;box-shadow:0 2px 6px rgba(18,33,64,.05)
 }
-.subject-card.dragging,.mini-card.dragging,.room-card.dragging{opacity:.55;transform:scale(.99)}
-.room-card{cursor:grab}
-.room-card:active{cursor:grabbing}
+.subject-card.dragging,.mini-card.dragging{opacity:.55;transform:scale(.99)}
 .subject-card{
   position:relative;padding:14px 12px 12px;min-height:134px
 }
@@ -333,8 +331,46 @@ button,input{font:inherit}
 
 .tag.state.pendiente,.tag.state.en-revisiÃ³n,.tag.state.bloqueado,.tag.state.licencia{background:#fff0cf;color:#f59e0b}
 .tag.state.activa,.tag.state.activo,.tag.state.en-proceso{background:#e4f8e8;color:#22c55e}
+.tag.state.inactivo{background:#fdecec;color:#dc2626}
 .period-field span{display:block;color:#6f7d93;font-weight:700;margin-bottom:8px}
 .period-field strong{font-size:1.15rem;font-weight:500;color:#263244}
+
+.catalog-page .feedback{margin:16px 24px 0}
+.row-actions{display:flex;gap:10px}
+.delete-btn{
+  border:0;border-radius:12px;padding:12px 18px;font-weight:700;cursor:pointer;
+  background:#fdecec;color:#dc2626
+}
+
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(15,23,42,.55);
+  display:grid;place-items:center;z-index:1000;padding:24px
+}
+.modal-card{
+  width:min(640px, 100%);max-height:90vh;overflow-y:auto;
+  background:#fff;border-radius:20px;box-shadow:0 20px 60px rgba(19,38,74,.25);
+  padding:28px 32px 32px
+}
+.modal-header{
+  display:flex;align-items:center;justify-content:space-between;margin-bottom:20px
+}
+.modal-header h3{margin:0;font-size:1.35rem;color:#1f2b3d}
+.modal-close{
+  border:0;background:#f1f4f8;color:#6a7689;width:36px;height:36px;
+  border-radius:10px;font-size:1.3rem;line-height:1;cursor:pointer
+}
+.modal-form{display:grid;gap:18px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.form-field{display:grid;gap:8px}
+.form-field label{font-size:.88rem;font-weight:700;color:#4a5872}
+.form-field input,.form-field select{
+  height:48px;border:1px solid #d9e3f1;border-radius:10px;padding:0 16px;
+  font-size:.97rem;color:#2b3447;background:#fff
+}
+.form-field select{appearance:auto}
+.modal-actions{
+  display:flex;justify-content:flex-end;gap:12px;margin-top:6px
+}
 
 .auth-screen{
   min-height:100vh;
