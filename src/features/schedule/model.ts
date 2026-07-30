@@ -208,14 +208,14 @@ export function minutesToHourLabel(totalMinutes: number) {
   return toTimeString(totalMinutes);
 }
 
-export function buildTimeSlots(startHour = 7, endHour = 19, stepMinutes = 30) {
+export function buildTimeSlots(startHour = 7, endHour = 19, stepMinutes = 60) {
   const slots: Array<{ minutes: number; label: string; shortLabel: string }> = [];
 
   for (let minutes = startHour * 60; minutes < endHour * 60; minutes += stepMinutes) {
     slots.push({
       minutes,
       label: toTimeString(minutes),
-      shortLabel: minutes % 60 === 0 ? toTimeString(minutes) : '',
+      shortLabel: toTimeString(minutes),
     });
   }
 
@@ -228,6 +228,18 @@ export function dayKeyToApiValue(dayKey: ScheduleDayKey) {
 
 export function dayKeyToLabel(dayKey: ScheduleDayKey) {
   return scheduleDays.find((day) => day.key === dayKey)?.label ?? 'Lunes';
+}
+
+function normalizeScheduleBounds(startMinutes: number, endMinutes: number) {
+  const snappedStart = Math.floor(startMinutes / 60) * 60;
+  const rawDuration = Math.max(1, endMinutes - startMinutes);
+  const blockCount = Math.max(1, Math.round((rawDuration + 10) / 60));
+  const snappedEnd = snappedStart + blockCount * 60 - 10;
+
+  return {
+    startMinutes: snappedStart,
+    endMinutes: snappedEnd,
+  };
 }
 
 export function normalizeScheduleSnapshot(raw: {
@@ -296,9 +308,11 @@ export function normalizeScheduleSnapshot(raw: {
       }));
 
   const sessions = raw.sesiones.map((session) => {
-    const day = scheduleDays.find((item) => item.apiValue === session.dia);
-    const startMinutes = toMinutes(session.hora_inicio);
-    const endMinutes = toMinutes(session.hora_fin);
+    const normalizedApiDay = session.dia.toUpperCase();
+    const day = scheduleDays.find((item) => item.apiValue === normalizedApiDay);
+    const rawStartMinutes = toMinutes(session.hora_inicio);
+    const rawEndMinutes = toMinutes(session.hora_fin);
+    const { startMinutes, endMinutes } = normalizeScheduleBounds(rawStartMinutes, rawEndMinutes);
 
     return {
       id: session.id,
