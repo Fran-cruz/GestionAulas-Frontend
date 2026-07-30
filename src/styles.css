@@ -106,6 +106,9 @@ button,input{font:inherit}
 .feedback{
   margin:0 14px 10px;color:#4c5d75;background:#f5f8fd;border-left:4px solid #2f6bf3;padding:10px 12px;border-radius:10px;font-size:.92rem
 }
+.feedback.error{
+  background:#fff1f1;border-left-color:#dc2626;color:#991b1b
+}
 .kanban-board{padding:12px 12px 0;background:#eef3fa}
 .board-header{
   display:flex;align-items:flex-start;justify-content:space-between;padding:0 8px 10px
@@ -146,15 +149,22 @@ button,input{font:inherit}
 
 .schedule-page{padding:18px 14px 0}
 .schedule-toolbar{
-  display:grid;grid-template-columns:330px 240px 260px 180px 260px 120px;gap:14px;align-items:center;margin-bottom:24px
+  display:grid;grid-template-columns:minmax(220px, 300px) minmax(180px, 220px) minmax(240px, 1fr) minmax(160px, 200px) 220px 120px;gap:14px;align-items:stretch;margin-bottom:24px
 }
 .select-box,.week-box,.availability,.replicate-btn{justify-content:space-between}
 .select-box select{
   width:100%;border:0;background:transparent;font:inherit;color:#253042;outline:none
 }
+.week-box{
+  display:flex;flex-direction:column;justify-content:center;gap:4px
+}
+.week-box strong{font-size:.96rem;color:#253042}
+.week-box span{font-size:.83rem;color:#64748b}
 .week-box button{border:0;background:#edf1f7;color:#6b7688;width:48px;height:100%;font-size:1.4rem}
-.availability{background:#e4f9e7;color:#16a34a;font-weight:700;justify-content:flex-start;gap:8px}
-.replicate-btn{background:#eef3ff;border:2px solid #2f6bf3;color:#2f6bf3;font-weight:700;justify-content:flex-start;gap:8px}
+.availability{background:#e4f9e7;color:#16a34a;font-weight:700;justify-content:center;align-items:flex-start;flex-direction:column;gap:4px}
+.availability span{font-size:.82rem;text-transform:uppercase;letter-spacing:.04em}
+.availability strong{font-size:1.02rem}
+.replicate-btn{background:#eef3ff;border:2px solid #2f6bf3;color:#2f6bf3;font-weight:700;justify-content:center;gap:8px}
 .schedule-grid{display:grid;grid-template-columns:230px 1fr;min-height:820px}
 .schedule-sidebar{background:#fff;border-right:1px solid #dfe6f1}
 .section-head.compact{padding:10px 12px}
@@ -183,20 +193,24 @@ button,input{font:inherit}
 .day-head.active strong,.day-head.active span{color:#2f6bf3}
 .time-gap,.time-cell{border-bottom:1px solid #dde4ee}
 .time-cell{
-  display:flex;align-items:flex-start;justify-content:center;padding-top:6px;color:#6f8096;background:#f5f7fb
+  display:flex;align-items:flex-start;justify-content:center;padding-top:6px;color:#6f8096;background:#f5f7fb;font-size:.82rem
 }
 .slot{
-  min-height:82px;border-left:1px solid #dde4ee;border-bottom:1px solid #dde4ee;position:relative;background:#fff
+  min-height:56px;border-left:1px solid #dde4ee;border-bottom:1px solid #dde4ee;position:relative;background:#fff
 }
 .event{
-  position:absolute;left:4px;right:4px;top:8px;min-height:64px;padding:8px;border-left:4px solid #3b82f6;background:#dce8ff
+  position:absolute;left:4px;right:4px;top:4px;padding:8px;border-left:4px solid #3b82f6;background:#dce8ff;overflow:hidden;cursor:grab
 }
 .event.green{background:#dff7e2;border-left-color:#22c55e}
 .event.purple{background:#eadcff;border-left-color:#a855f7}
 .event.orange{background:#ffe8d7;border-left-color:#f97316}
 .event.teal{background:#d9f8f5;border-left-color:#14b8a6}
-.event strong,.event span,.event small,.event b{display:block;font-size:.88rem;color:#314054}
-.event.tall{min-height:170px}
+.event.gray{background:#eef2f7;border-left-color:#64748b}
+.event strong,.event span,.event small,.event b{display:block;font-size:.82rem;color:#314054}
+.event-header{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.event-delete{
+  border:0;background:#ffffffb8;color:#334155;border-radius:999px;width:22px;height:22px;cursor:pointer;font-weight:800;line-height:1
+}
 .current-line{position:absolute;left:-6px;right:-6px;top:30px;height:3px;background:#ff3b30}
 .legend{
   display:flex;align-items:center;gap:14px;padding:14px;border-top:1px solid #dde4ee;background:#fff;position:sticky;bottom:0
@@ -209,11 +223,13 @@ button,input{font:inherit}
 .legend-item.purple::before{background:#a855f7}
 .legend-item.orange::before{background:#f97316}
 .legend-item.teal::before{background:#14b8a6}
+.legend-item.gray::before{background:#64748b}
 .legend-item.border::before{background:#2f6bf3}
 .assignment-summary{
   margin:14px 8px 0;padding:12px 14px;background:#fff;border-radius:14px;display:flex;justify-content:space-between;color:#5d6e84
 }
 .assignment-summary strong{color:#253042}
+.sidebar-note{padding:12px 10px;color:#6a778a;font-size:.92rem}
 
 @media (max-width: 1400px){
   body{min-width:1200px}
