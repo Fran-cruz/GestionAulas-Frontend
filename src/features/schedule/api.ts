@@ -35,7 +35,7 @@ export async function fetchScheduleSnapshot(): Promise<ScheduleSnapshot> {
     apiRequest<ApiSeccion[]>('/secciones'),
     apiRequest<ApiAsignacion[]>('/asignaciones'),
     apiRequest<ApiSesionHorario[]>('/sesiones-horario'),
-    apiRequest<ApiPeriodoAcademico[]>('/periodos.ts-academicos'),
+    apiRequest<ApiPeriodoAcademico[]>('/periodos-academicos'),
   ]);
 
   return normalizeScheduleSnapshot({
