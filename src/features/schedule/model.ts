@@ -239,13 +239,13 @@ export function normalizeScheduleSnapshot(raw: {
   periodos: ApiPeriodoAcademico[];
 }): ScheduleSnapshot {
   const teacherMap = new Map<number, ScheduleTeacher>(
-    raw.docentes.map((teacher) => [
-      teacher.id,
-      {
-        id: teacher.id,
-        name: teacher.nombre_completo,
-      },
-    ]),
+      raw.docentes.map((teacher) => [
+        teacher.id,
+        {
+          id: teacher.id,
+          name: teacher.nombre_completo,
+        },
+      ]),
   );
 
   const rooms = raw.aulas.map((room) => {
@@ -283,17 +283,17 @@ export function normalizeScheduleSnapshot(raw: {
   });
 
   const assignments = raw.asignaciones
-    .filter((assignment): assignment is ApiAsignacion & { id_seccion: number } => assignment.id_seccion !== null)
-    .map((assignment) => ({
-      id: assignment.id,
-      sectionId: assignment.id_seccion,
-      periodId: assignment.id_periodo,
-      roomId: assignment.id_aula,
-      teacherId: assignment.id_docente,
-      students: assignment.estudiantes_matriculados,
-      overCapacityConfirmed: assignment.sobrecargo_confirmado,
-      status: assignment.estado,
-    }));
+      .filter((assignment): assignment is ApiAsignacion & { id_seccion: number } => assignment.id_seccion !== null)
+      .map((assignment) => ({
+        id: assignment.id,
+        sectionId: assignment.id_seccion,
+        periodId: assignment.id_periodo,
+        roomId: assignment.id_aula,
+        teacherId: assignment.id_docente,
+        students: assignment.estudiantes_matriculados,
+        overCapacityConfirmed: assignment.sobrecargo_confirmado,
+        status: assignment.estado,
+      }));
 
   const sessions = raw.sesiones.map((session) => {
     const day = scheduleDays.find((item) => item.apiValue === session.dia);
@@ -328,6 +328,6 @@ export function normalizeScheduleSnapshot(raw: {
     assignments,
     sessions,
     periods,
-    activePeriod: periods.find((period) => period.status === 'activo') ?? null,
+    activePeriod: periods.find((period) => period.status.toUpperCase() === 'ACTIVO') ?? null,
   };
 }
