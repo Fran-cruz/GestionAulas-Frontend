@@ -100,7 +100,9 @@ export function Layout() {
               <strong>{user.name}</strong>
             </div>
             <div className="avatar">MG</div>
-            <div className="bell">🔔</div>
+            <div className="bell">
+              <img className="bell" src="https://p.turbosquid.com/ts-thumb/t2/xar3sg/DS/z0p1x1/jpg/1696609801/600x600/fit_q87/6b6794d4a18b97facbf08c8409027895a19f8abd/z0p1x1.jpg" alt=""/>
+            </div>
             <button type="button" className="logout-btn" onClick={handleLogout}>
               Salir
             </button>
