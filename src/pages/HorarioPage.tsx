@@ -560,50 +560,6 @@ export function HorarioPage() {
             <strong>Secciones de esta aula</strong>
             <span>{roomSections.length} asignadas · {currentRoomBlocks} bloques en este aula</span>
           </div>
-          {!loading && roomSections.length ? (
-            <div className="assigned-section-list">
-              {roomSections.map(({ assignment, section, scheduleSummary, sessionCount }) => (
-                <article
-                  key={assignment.id}
-                  draggable={!saving}
-                  onDragStart={() => {
-                    const assignmentSessions = sessionsByAssignmentId.get(assignment.id) ?? [];
-                    const firstSession = assignmentSessions[0];
-                    if (firstSession) {
-                      setDragState({
-                        kind: 'session',
-                        sessionId: firstSession.id,
-                        assignmentId: assignment.id,
-                        sectionId: section.id,
-                      });
-                      return;
-                    }
-
-                    setDragState({
-                      kind: 'section',
-                      sectionId: section.id,
-                    });
-                  }}
-                  onDragEnd={() => {
-                    setDragState(null);
-                    setDropState(null);
-                  }}
-                  className={`mini-card assigned ${areaColor(section.areaKey)}`}
-                >
-                  <strong>{section.code}</strong>
-                  <span>{section.name}</span>
-                  <small>{section.teacherName}</small>
-                  <div className={`mini-pill ${areaColor(section.areaKey)}`}>{section.areaLabel}</div>
-                  <small>{scheduleSummary}</small>
-                  <small>Bloques: {sessionCount}/{section.weeklySessionsTarget} · Matricula: {assignment.students}</small>
-                  <small>Duracion: {getDurationBlocks(section)} hora(s) academica(s)</small>
-                </article>
-              ))}
-            </div>
-          ) : null}
-          {!loading && !roomSections.length ? (
-            <p className="sidebar-note">Esta aula aun no tiene secciones asignadas o sus asignaciones no tienen horario creado.</p>
-          ) : null}
           <div className="filter-row wrap">
             {scheduleSectionFilters.map((filter) => (
               <button
@@ -618,6 +574,50 @@ export function HorarioPage() {
           </div>
           <p className={`feedback ${error ? 'error' : ''}`}>{error ?? message}</p>
           {loading ? <p className="sidebar-note">Cargando datos del backend...</p> : null}
+          {!loading && roomSections.length ? (
+              <div className="assigned-section-list">
+                {roomSections.map(({ assignment, section, scheduleSummary, sessionCount }) => (
+                    <article
+                        key={assignment.id}
+                        draggable={!saving}
+                        onDragStart={() => {
+                          const assignmentSessions = sessionsByAssignmentId.get(assignment.id) ?? [];
+                          const firstSession = assignmentSessions[0];
+                          if (firstSession) {
+                            setDragState({
+                              kind: 'session',
+                              sessionId: firstSession.id,
+                              assignmentId: assignment.id,
+                              sectionId: section.id,
+                            });
+                            return;
+                          }
+
+                          setDragState({
+                            kind: 'section',
+                            sectionId: section.id,
+                          });
+                        }}
+                        onDragEnd={() => {
+                          setDragState(null);
+                          setDropState(null);
+                        }}
+                        className={`mini-card assigned ${areaColor(section.areaKey)}`}
+                    >
+                      <strong>{section.code}</strong>
+                      <span>{section.name}</span>
+                      <small>{section.teacherName}</small>
+                      <div className={`mini-pill ${areaColor(section.areaKey)}`}>{section.areaLabel}</div>
+                      <small>{scheduleSummary}</small>
+                      <small>Bloques: {sessionCount}/{section.weeklySessionsTarget} · Matricula: {assignment.students}</small>
+                      <small>Duracion: {getDurationBlocks(section)} hora(s) academica(s)</small>
+                    </article>
+                ))}
+              </div>
+          ) : null}
+          {!loading && !roomSections.length ? (
+              <p className="sidebar-note">Esta aula aun no tiene secciones asignadas o sus asignaciones no tienen horario creado.</p>
+          ) : null}
           <p className="sidebar-note">
             Solo se muestran las secciones ya asignadas a esta aula. Con autocompletar activo, la primera sesion replica el resto de la semana; apagado, debes arrastrar hora por hora.
           </p>
