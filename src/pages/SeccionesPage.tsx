@@ -21,6 +21,7 @@ const emptyForm: SeccionFormValues = {
   area_academica: '',
   duracion_sesion_horas: '0',
   horas_semanales_totales: '0',
+  cantidad_alumnos: '0',
   sesiones_por_semana: '1',
   activa: true,
 };
@@ -81,6 +82,7 @@ export function SeccionesPage() {
       area_academica: seccion.area_academica,
       duracion_sesion_horas: String(seccion.duracion_sesion_horas),
       horas_semanales_totales: String(seccion.horas_semanales_totales),
+      cantidad_alumnos: String(seccion.cantidad_alumnos ?? 0),
       sesiones_por_semana: String(seccion.sesiones_por_semana ?? 1),
       activa: seccion.activa,
     });
@@ -304,6 +306,17 @@ export function SeccionesPage() {
                   </div>
 
                   <div className="form-row">
+                    <div className="form-field">
+                      <label>Cantidad de Alumnos *</label>
+                      <input
+                          type="number"
+                          min="0"
+                          value={form.cantidad_alumnos}
+                          onChange={handleChange('cantidad_alumnos')}
+                          required
+                      />
+                    </div>
+
                     <div className="form-field">
                       <label>Sesiones por Semana</label>
                       <input

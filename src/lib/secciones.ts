@@ -11,6 +11,7 @@ export type Seccion = {
     area_academica: string;
     duracion_sesion_horas: number;
     horas_semanales_totales: number;
+    cantidad_alumnos: number | null;
     sesiones_por_semana: number | null;
     activa: boolean;
     docente_nombre: string | null;
@@ -26,6 +27,7 @@ export type SeccionFormValues = {
     area_academica: string;
     duracion_sesion_horas: string;
     horas_semanales_totales: string;
+    cantidad_alumnos: string;
     sesiones_por_semana: string;
     activa: boolean;
 };
@@ -43,6 +45,7 @@ export function createSeccion(values: SeccionFormValues) {
         area_academica: values.area_academica,
         duracion_sesion_horas: parseFloat(values.duracion_sesion_horas),
         horas_semanales_totales: parseFloat(values.horas_semanales_totales),
+        cantidad_alumnos: values.cantidad_alumnos ? parseInt(values.cantidad_alumnos) : null,
         sesiones_por_semana: values.sesiones_por_semana ? parseInt(values.sesiones_por_semana) : null,
         activa: values.activa,
     };
@@ -62,6 +65,7 @@ export function updateSeccion(id: number, values: SeccionFormValues) {
         area_academica: values.area_academica,
         duracion_sesion_horas: parseFloat(values.duracion_sesion_horas),
         horas_semanales_totales: parseFloat(values.horas_semanales_totales),
+        cantidad_alumnos: values.cantidad_alumnos ? parseInt(values.cantidad_alumnos) : null,
         sesiones_por_semana: values.sesiones_por_semana ? parseInt(values.sesiones_por_semana) : null,
         activa: values.activa,
     };
