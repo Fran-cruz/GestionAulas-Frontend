@@ -87,7 +87,23 @@ button,input{font:inherit}
 .subject-card,.mini-card,.room-card,.event{
   background:#fff;border:1px solid #d9e2ef;border-radius:14px;box-shadow:0 2px 6px rgba(18,33,64,.05)
 }
-.subject-card.dragging,.mini-card.dragging{opacity:.55;transform:scale(.99)}
+.subject-card.dragging,.mini-card.dragging,.room-card.dragging{opacity:.35}
+.subject-card,.room-card{cursor:grab;user-select:none;-webkit-user-select:none;touch-action:none}
+.subject-card.dragging,.room-card.dragging{cursor:grabbing}
+
+/* Tarjeta fantasma que sigue al cursor durante el arrastre (ClasesPorAulaPage). */
+.drag-ghost{
+  position:fixed;top:0;left:0;z-index:9999;pointer-events:none;width:220px;
+  background:#fff;border:1px solid #2f6bf3;border-radius:14px;
+  box-shadow:0 14px 32px rgba(18,33,64,.32);padding:10px 12px 12px;
+  opacity:0;transform:translate(-9999px,-9999px);transition:opacity .08s ease-out;
+}
+.drag-ghost.visible{opacity:.97}
+.drag-ghost::before{content:'';display:block;height:4px;margin:-10px -12px 8px;border-radius:14px 14px 0 0;background:#2f6bf3}
+.drag-ghost.green::before{background:#22c55e}
+.drag-ghost.orange::before{background:#f59e0b}
+.drag-ghost strong{display:block;font-size:1rem;color:#2d3748}
+.drag-ghost span{display:block;color:#65768b;font-size:.88rem;margin-top:2px}
 .subject-card{
   position:relative;padding:14px 12px 12px;min-height:134px
 }
@@ -349,6 +365,7 @@ button,input{font:inherit}
 .tag.state.pendiente,.tag.state.en-revisiÃ³n,.tag.state.bloqueado,.tag.state.licencia,.tag.state.mantenimiento{background:#fff0cf;color:#f59e0b}
 .tag.state.activa,.tag.state.activo,.tag.state.en-proceso,.tag.state.disponible{background:#e4f8e8;color:#22c55e}
 .tag.state.inactivo{background:#fdecec;color:#dc2626}
+.tag.state.cerrado{background:#eef1f6;color:#5b6b84}
 .period-field span{display:block;color:#6f7d93;font-weight:700;margin-bottom:8px}
 .period-field strong{font-size:1.15rem;font-weight:500;color:#263244}
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ApiError } from '../lib/api';
 import { createAssignment, fetchScheduleSnapshot, updateAssignment } from '../features/schedule/api';
 import {
@@ -37,6 +37,16 @@ function getErrorMessage(error: unknown) {
   return 'Ocurrió un error inesperado.';
 }
 
+// Info mínima que necesita la tarjeta "fantasma" que sigue al mouse mientras arrastramos.
+type DragGhostInfo = {
+  sectionId: number;
+  sourceRoomId: number | null;
+  code: string;
+  name: string;
+  areaLabel: string;
+  colorClass: '' | 'green' | 'orange';
+};
+
 export function ClasesPorAulaPage() {
   const [snapshot, setSnapshot] = useState<ScheduleSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
@@ -45,8 +55,18 @@ export function ClasesPorAulaPage() {
 
   const [sectionFilter, setSectionFilter] = useState<'all' | ScheduleAreaKey>('all');
   const [roomTypeFilter, setRoomTypeFilter] = useState<RoomTypeFilter>('all');
-  const [draggingId, setDraggingId] = useState<number | null>(null);
   const [message, setMessage] = useState('Cargando información desde el backend...');
+
+  // --- Arrastre propio (no usamos el drag-and-drop nativo del navegador) ---
+  // draggingSectionId: qué sección se está moviendo ahora mismo (controla estilos "dragging").
+  // hoverRoomId: sobre qué aula está el cursor ahora mismo (controla el resaltado de esa columna).
+  // dragInfoRef / dragPosRef: datos que necesitamos leer dentro de los listeners globales sin
+  // volver a crearlos en cada pixel de movimiento (evita relentizar el arrastre).
+  const [draggingSectionId, setDraggingSectionId] = useState<number | null>(null);
+  const [hoverRoomId, setHoverRoomId] = useState<number | null>(null);
+  const dragInfoRef = useRef<DragGhostInfo | null>(null);
+  const ghostRef = useRef<HTMLDivElement | null>(null);
+  const hoverRoomIdRef = useRef<number | null>(null);
 
   const loadSnapshot = async (options?: { silent?: boolean; keepMessage?: boolean }) => {
     if (!options?.silent) {
@@ -66,7 +86,7 @@ export function ClasesPorAulaPage() {
         } else if (!nextSnapshot.activePeriod) {
           setMessage('No existe un período académico activo. Créalo en el módulo de Períodos para poder asignar aulas.');
         } else {
-          setMessage('Arrastra una sección hacia un aula disponible.');
+          setMessage('Haz clic y arrastra una sección hacia un aula disponible.');
         }
       }
     } catch (err) {
@@ -127,10 +147,8 @@ export function ClasesPorAulaPage() {
     return teacherIndex.get(teacherId) ?? section.teacherName;
   }
 
-  async function handleDrop(room: ScheduleRoom) {
-    if (draggingId === null) return;
-    const section = sectionIndex.get(draggingId);
-    setDraggingId(null);
+  async function handleDrop(room: ScheduleRoom, sectionId: number) {
+    const section = sectionIndex.get(sectionId);
     if (!section) return;
 
     if (room.maintenance) {
@@ -168,19 +186,28 @@ export function ClasesPorAulaPage() {
 
     setSaving(true);
     try {
+      let saved;
       if (existing) {
-        await updateAssignment(existing.id, {
+        saved = await updateAssignment(existing.id, {
           id_aula: room.id,
           sobrecargo_confirmado: overCapacityConfirmed,
         });
       } else {
-        await createAssignment({
+        saved = await createAssignment({
           id_seccion: section.id,
           id_periodo: activePeriod!.id,
           id_aula: room.id,
           id_docente: section.teacherId,
           sobrecargo_confirmado: overCapacityConfirmed,
         });
+      }
+      // eslint-disable-next-line no-console
+      console.debug('[ClasesPorAula] asignación guardada por el backend →', saved);
+      if (saved.id_aula !== room.id) {
+        // eslint-disable-next-line no-console
+        console.warn(
+            `[ClasesPorAula] el backend respondió id_aula=${saved.id_aula} pero se soltó sobre el aula ${room.id} (${room.code}). Esto es un problema del Controller, no del arrastre.`,
+        );
       }
 
       await loadSnapshot({ silent: true, keepMessage: true });
@@ -193,6 +220,76 @@ export function ClasesPorAulaPage() {
       setSaving(false);
     }
   }
+
+  function moveGhostTo(x: number, y: number) {
+    if (ghostRef.current) {
+      ghostRef.current.style.transform = `translate(${x + 16}px, ${y + 16}px)`;
+    }
+  }
+
+  function roomIdUnderPoint(x: number, y: number): number | null {
+    const el = document.elementFromPoint(x, y);
+    const roomEl = el instanceof Element ? el.closest<HTMLElement>('[data-room-id]') : null;
+    if (!roomEl) return null;
+    const parsed = Number(roomEl.dataset.roomId);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  function handlePointerMoveWindow(event: PointerEvent) {
+    moveGhostTo(event.clientX, event.clientY);
+    const roomId = roomIdUnderPoint(event.clientX, event.clientY);
+    hoverRoomIdRef.current = roomId;
+    setHoverRoomId((prev) => (prev === roomId ? prev : roomId));
+  }
+
+  function handlePointerUpWindow(event: PointerEvent) {
+    window.removeEventListener('pointermove', handlePointerMoveWindow);
+    window.removeEventListener('pointerup', handlePointerUpWindow);
+
+    const info = dragInfoRef.current;
+    dragInfoRef.current = null;
+    setDraggingSectionId(null);
+    setHoverRoomId(null);
+
+    if (!info) return;
+
+    // Preferimos el punto exacto de soltar; si por un movimiento rápido cae justo
+    // en el borde/gap entre columnas, usamos el último aula que sí se resaltó.
+    const roomId = roomIdUnderPoint(event.clientX, event.clientY) ?? hoverRoomIdRef.current;
+    hoverRoomIdRef.current = null;
+    if (roomId === null) {
+      setMessage('Suelta la clase sobre un aula para asignarla (se canceló: no soltaste sobre ninguna).');
+      return;
+    }
+
+    const room = rooms.find((candidate) => candidate.id === roomId);
+    if (!room) return;
+
+    void handleDrop(room, info.sectionId);
+  }
+
+  function beginDrag(event: React.PointerEvent, info: DragGhostInfo) {
+    // Solo el botón principal (o toque) inicia el arrastre.
+    if (event.button !== undefined && event.button !== 0) return;
+    event.preventDefault();
+
+    dragInfoRef.current = info;
+    hoverRoomIdRef.current = null;
+    setDraggingSectionId(info.sectionId);
+    moveGhostTo(event.clientX, event.clientY);
+
+    window.addEventListener('pointermove', handlePointerMoveWindow);
+    window.addEventListener('pointerup', handlePointerUpWindow);
+  }
+
+  // Por si el componente se desmonta a mitad de un arrastre.
+  useEffect(() => {
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMoveWindow);
+      window.removeEventListener('pointerup', handlePointerUpWindow);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (loading) {
     return (
@@ -213,8 +310,21 @@ export function ClasesPorAulaPage() {
     );
   }
 
+  const isDragging = draggingSectionId !== null;
+  const ghostInfo = dragInfoRef.current;
+
   return (
       <section className="kanban-page">
+        {/* Tarjeta fantasma: sigue al cursor mientras se arrastra una clase. */}
+        <div ref={ghostRef} className={`drag-ghost ${isDragging ? 'visible' : ''} ${ghostInfo ? areaColorClass(sectionIndex.get(ghostInfo.sectionId)?.areaKey ?? 'otro') : ''}`}>
+          {ghostInfo ? (
+              <>
+                <strong>{ghostInfo.code}</strong>
+                <span>{ghostInfo.name}</span>
+              </>
+          ) : null}
+        </div>
+
         <aside className="kanban-left">
           <div className="section-head dark">
             <strong>Secciones sin Aula</strong>
@@ -237,10 +347,17 @@ export function ClasesPorAulaPage() {
             {filteredSections.map((item) => (
                 <article
                     key={item.id}
-                    draggable
-                    onDragStart={() => setDraggingId(item.id)}
-                    onDragEnd={() => setDraggingId(null)}
-                    className={`subject-card ${areaColorClass(item.areaKey)} ${draggingId === item.id ? 'dragging' : ''}`}
+                    onPointerDown={(event) =>
+                        beginDrag(event, {
+                          sectionId: item.id,
+                          sourceRoomId: null,
+                          code: item.code,
+                          name: item.name,
+                          areaLabel: item.areaLabel,
+                          colorClass: areaColorClass(item.areaKey),
+                        })
+                    }
+                    className={`subject-card ${areaColorClass(item.areaKey)} ${draggingSectionId === item.id ? 'dragging' : ''}`}
                 >
                   <div className="subject-tag">{item.areaLabel}</div>
                   <div className="subject-code">{item.code}</div>
@@ -282,13 +399,13 @@ export function ClasesPorAulaPage() {
               const assigned = visibleAssignments.filter((a) => a.roomId === room.id);
               const used = assigned.reduce((sum, a) => sum + a.students, 0);
               const occupancy = room.capacity ? Math.round((used / room.capacity) * 100) : 0;
+              const isHovered = isDragging && hoverRoomId === room.id && !room.maintenance;
 
               return (
                   <section
                       key={room.id}
-                      className={`room-column ${room.maintenance ? 'disabled' : ''}`}
-                      onDragOver={(event) => event.preventDefault()}
-                      onDrop={() => handleDrop(room)}
+                      data-room-id={room.id}
+                      className={`room-column ${room.maintenance ? 'disabled' : ''} ${isHovered ? 'active' : ''}`}
                   >
                     <header className="room-head">
                       <strong>{room.code}</strong>
@@ -307,10 +424,17 @@ export function ClasesPorAulaPage() {
                       return (
                           <article
                               key={a.id}
-                              draggable
-                              onDragStart={() => setDraggingId(section.id)}
-                              onDragEnd={() => setDraggingId(null)}
-                              className={`room-card ${areaColorClass(section.areaKey)} ${draggingId === section.id ? 'dragging' : ''}`}
+                              onPointerDown={(event) =>
+                                  beginDrag(event, {
+                                    sectionId: section.id,
+                                    sourceRoomId: room.id,
+                                    code: section.code,
+                                    name: section.name,
+                                    areaLabel: section.areaLabel,
+                                    colorClass: areaColorClass(section.areaKey),
+                                  })
+                              }
+                              className={`room-card ${areaColorClass(section.areaKey)} ${draggingSectionId === section.id ? 'dragging' : ''}`}
                           >
                             <div className="subject-tag">{section.areaLabel}</div>
                             <strong>{section.code}</strong>
@@ -321,7 +445,7 @@ export function ClasesPorAulaPage() {
                       );
                     })}
 
-                    <div className={`drop-zone ${room.maintenance || draggingId === null ? '' : 'highlighted'}`}>
+                    <div className={`drop-zone ${room.maintenance || !isDragging ? '' : hoverRoomId === room.id ? 'highlighted' : ''}`}>
                       <span>{room.maintenance ? 'Aula en mantenimiento' : '+ Soltar sección aquí'}</span>
                     </div>
                   </section>
