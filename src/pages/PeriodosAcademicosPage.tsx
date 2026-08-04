@@ -1,39 +1,189 @@
-const periods = [
-  ['Enero - Junio 2026', '10/01/2026', '30/06/2026', '118', 'Cerrado'],
-  ['Agosto - Diciembre 2025', '05/08/2025', '18/12/2025', '105', 'Cerrado'],
-  ['Enero - Junio 2025', '08/01/2025', '25/06/2025', '96', 'Cerrado'],
-];
+import { ChangeEvent, FormEvent, useEffect, useState } from 'react';
+import { ApiError } from '../lib/api';
+import {
+  PeriodoAcademico,
+  PeriodoFormValues,
+  createPeriodo,
+  formatEstado,
+  formatFecha,
+  listPeriodos,
+} from '../lib/periodos';
+
+const emptyForm: PeriodoFormValues = {
+  nombre: '',
+  fecha_inicio: '',
+  fecha_fin: '',
+  estado: 'ACTIVO',
+};
+
+function getStoredAuthUserId() {
+  const raw = localStorage.getItem('auth_user');
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as { id?: number };
+    return typeof parsed.id === 'number' ? parsed.id : null;
+  } catch {
+    return null;
+  }
+}
 
 export function PeriodosAcademicosPage() {
+  const [periodos, setPeriodos] = useState<PeriodoAcademico[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [form, setForm] = useState<PeriodoFormValues>(emptyForm);
+  const [formError, setFormError] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const loadPeriodos = async () => {
+    setLoading(true);
+    setLoadError('');
+
+    try {
+      const data = await listPeriodos();
+      setPeriodos(data);
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : 'No se pudieron cargar los períodos.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadPeriodos();
+  }, []);
+
+  const handleChange = (field: keyof PeriodoFormValues) => (
+    event: ChangeEvent<HTMLInputElement | HTMLSelectElement>,
+  ) => {
+    setForm((prev) => ({ ...prev, [field]: event.target.value }));
+  };
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setFormError('');
+
+    const authUserId = getStoredAuthUserId();
+    if (!authUserId) {
+      setFormError('No se pudo identificar al usuario autenticado. Vuelve a iniciar sesión.');
+      return;
+    }
+
+    if (form.fecha_fin <= form.fecha_inicio) {
+      setFormError('La fecha de fin debe ser posterior a la fecha de inicio.');
+      return;
+    }
+
+    setSaving(true);
+
+    const payload: PeriodoFormValues = {
+      ...form,
+      nombre: form.nombre.trim(),
+    };
+
+    try {
+      await createPeriodo(payload, authUserId);
+      setForm(emptyForm);
+      await loadPeriodos();
+    } catch (error) {
+      if (error instanceof ApiError) {
+        setFormError(error.message);
+        return;
+      }
+
+      setFormError('No se pudo guardar el período.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <section className="catalog-page">
       <div className="toolbar">
         <div className="catalog-summary">Gestión de Períodos Académicos</div>
       </div>
 
+      {loadError ? <div className="feedback error">{loadError}</div> : null}
+
       <div className="content-grid" style={{ gridTemplateColumns: '1fr 1fr', paddingTop: 40 }}>
         <section className="table-card" style={{ padding: 32, minHeight: 560 }}>
           <h3 style={{ marginTop: 0 }}>Crear Nuevo Período Académico</h3>
           <div style={{ borderTop: '1px solid #dbe4f0', margin: '48px 0 28px' }} />
 
-          <div style={{ display: 'grid', gap: 28 }}>
+          <form onSubmit={handleSubmit} style={{ display: 'grid', gap: 28 }}>
             <label className="period-field">
               <span>Nombre del Período</span>
-              <strong>Agosto - Diciembre 2026</strong>
+              <input
+                type="text"
+                value={form.nombre}
+                onChange={handleChange('nombre')}
+                placeholder="Ej: Agosto - Diciembre 2026"
+                required
+                maxLength={100}
+                style={{
+                  fontSize: 20,
+                  fontWeight: 500,
+                  border: 'none',
+                  borderBottom: '1px solid #dbe4f0',
+                  padding: '8px 0',
+                  outline: 'none',
+                  color: '#1a1a1a',
+                }}
+              />
             </label>
+
             <label className="period-field">
               <span>Fecha de Inicio</span>
-              <strong>01/08/2026</strong>
+              <input
+                type="date"
+                value={form.fecha_inicio}
+                onChange={handleChange('fecha_inicio')}
+                required
+                style={{
+                  fontSize: 20,
+                  fontWeight: 500,
+                  border: 'none',
+                  borderBottom: '1px solid #dbe4f0',
+                  padding: '8px 0',
+                  outline: 'none',
+                  color: '#1a1a1a',
+                }}
+              />
             </label>
+
             <label className="period-field">
               <span>Fecha de Fin</span>
-              <strong>20/12/2026</strong>
+              <input
+                type="date"
+                value={form.fecha_fin}
+                onChange={handleChange('fecha_fin')}
+                required
+                style={{
+                  fontSize: 20,
+                  fontWeight: 500,
+                  border: 'none',
+                  borderBottom: '1px solid #dbe4f0',
+                  padding: '8px 0',
+                  outline: 'none',
+                  color: '#1a1a1a',
+                }}
+              />
             </label>
-          </div>
 
-          <button className="primary-btn" style={{ marginTop: 48, width: 270 }}>
-            Guardar Nuevo Período
-          </button>
+            {formError ? <div className="feedback error">{formError}</div> : null}
+
+            <button
+              type="submit"
+              className="primary-btn"
+              disabled={saving}
+              style={{ marginTop: 20, width: 270 }}
+            >
+              {saving ? 'Guardando...' : 'Guardar Nuevo Período'}
+            </button>
+          </form>
         </section>
 
         <section className="table-card" style={{ padding: 24, minHeight: 660 }}>
@@ -49,15 +199,29 @@ export function PeriodosAcademicosPage() {
               </tr>
             </thead>
             <tbody>
-              {periods.map((row) => (
-                <tr key={row[0]}>
-                  <td>{row[0]}</td>
-                  <td>{row[1]}</td>
-                  <td>{row[2]}</td>
-                  <td>{row[3]}</td>
-                  <td><span className="tag state pendiente">{row[4]}</span></td>
+              {loading ? (
+                <tr>
+                  <td colSpan={5}>Cargando períodos...</td>
                 </tr>
-              ))}
+              ) : periodos.length === 0 ? (
+                <tr>
+                  <td colSpan={5}>No hay períodos registrados todavía.</td>
+                </tr>
+              ) : (
+                periodos.map((periodo) => (
+                  <tr key={periodo.id}>
+                    <td>{periodo.nombre}</td>
+                    <td>{formatFecha(periodo.fecha_inicio)}</td>
+                    <td>{formatFecha(periodo.fecha_fin)}</td>
+                    <td>{periodo.secciones}</td>
+                    <td>
+                      <span className={`tag state ${periodo.estado.toLowerCase()}`}>
+                        {formatEstado(periodo.estado)}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </section>
