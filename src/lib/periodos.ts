@@ -60,6 +60,12 @@ export function updatePeriodoEstado(id: number, estado: EstadoPeriodo) {
   });
 }
 
+export function activatePeriodo(id: number) {
+  return apiRequest<{ message: string; periodo: PeriodoAcademico }>(`/periodos-academicos/${id}/activar`, {
+    method: 'POST',
+  });
+}
+
 export function deletePeriodo(id: number) {
   return apiRequest<{ message: string }>(`/periodos-academicos/${id}`, {
     method: 'DELETE',
