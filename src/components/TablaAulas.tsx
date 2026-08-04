@@ -1,13 +1,4 @@
-export interface Aula {
-  id: number;
-  nombre: string;
-  edificio: string;
-  piso: number;
-  tipo: string;
-  capacidad_maxima: number;
-  descripcion: string;
-  estado: string;
-}
+import type { Aula } from "../lib/aulasServices";
 
 interface Props {
   aulas: Aula[];
