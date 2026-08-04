@@ -28,118 +28,125 @@ export function FormularioAula({
   function cambiarValor(
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) {
-    setFormulario({
-      ...formulario,
-      [e.target.name]: e.target.value,
-    });
+    const { name, value } = e.target;
+
+    setFormulario((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
   }
 
   return (
-    <form onSubmit={guardarAula}>
+    <div className="table-card aula-form-card">
+      <div className="section-title">
+        <h3>
+          {aulaID !== null ? "Modificar Aula" : "Registrar Aula"}
+        </h3>
+      </div>
 
-      <input
-        type="text"
-        name="nombre"
-        placeholder="Nombre del aula"
-        value={formulario.nombre}
-        onChange={cambiarValor}
-        required
-      />
+      <form className="modal-form" onSubmit={guardarAula}>
+        <label>
+          Nombre del aula
+          <input
+            type="text"
+            name="nombre"
+            value={formulario.nombre ?? ""}
+            onChange={cambiarValor}
+            required
+          />
+        </label>
 
-      <br />
-      <br />
+        <label>
+          Edificio
+          <input
+            type="text"
+            name="edificio"
+            value={formulario.edificio ?? ""}
+            onChange={cambiarValor}
+            required
+          />
+        </label>
 
-      <input
-        type="text"
-        name="edificio"
-        placeholder="Edificio"
-        value={formulario.edificio}
-        onChange={cambiarValor}
-        required
-      />
+        <label>
+          Piso
+          <input
+            type="number"
+            name="piso"
+            value={formulario.piso ?? ""}
+            onChange={cambiarValor}
+            required
+          />
+        </label>
 
-      <br />
-      <br />
+        <label>
+          Tipo
+          <select
+            name="tipo"
+            value={formulario.tipo ?? ""}
+            onChange={cambiarValor}
+            required
+          >
+            <option value="">Seleccione un tipo</option>
+            <option value="Clase general">Clase general</option>
+            <option value="Laboratorio">Laboratorio</option>
+            <option value="Laboratorio de Computo">
+              Laboratorio de Computo
+            </option>
+          </select>
+        </label>
 
-      <input
-        type="number"
-        name="piso"
-        placeholder="Piso"
-        value={formulario.piso}
-        onChange={cambiarValor}
-        required
-      />
+        <label>
+          Capacidad máxima
+          <input
+            type="number"
+            name="capacidad_maxima"
+            value={formulario.capacidad_maxima ?? ""}
+            onChange={cambiarValor}
+            required
+          />
+        </label>
 
-      <br />
-      <br />
+        <label>
+          Descripción
+          <input
+            type="text"
+            name="descripcion"
+            value={formulario.descripcion ?? ""}
+            onChange={cambiarValor}
+          />
+        </label>
 
-      <select
-        name="tipo"
-        value={formulario.tipo}
-        onChange={cambiarValor}
-        required
-      >
-        <option value="">Seleccione un tipo</option>
-        <option value="Clase general">Clase general</option>
-        <option value="Laboratorio">Laboratorio</option>
-        <option value="Laboratorio de Computo">
-          Laboratorio de Computo
-        </option>
-      </select>
+        <label>
+          Estado
+          <select
+            name="estado"
+            value={formulario.estado ?? ""}
+            onChange={cambiarValor}
+            required
+          >
+            <option value="">Seleccione un estado</option>
+            <option value="disponible">Disponible</option>
+            <option value="mantenimiento">Mantenimiento</option>
+          </select>
+        </label>
 
-      <br />
-      <br />
+        <div className="row-actions">
+          <button
+            className="primary-btn"
+            type="submit"
+          >
+            {aulaID !== null ? "Modificar" : "Crear"}
+          </button>
 
-      <input
-        type="number"
-        name="capacidad_maxima"
-        placeholder="Capacidad máxima"
-        value={formulario.capacidad_maxima}
-        onChange={cambiarValor}
-        required
-      />
-
-      <br />
-      <br />
-
-      <input
-        type="text"
-        name="descripcion"
-        placeholder="Descripción"
-        value={formulario.descripcion}
-        onChange={cambiarValor}
-      />
-
-      <br />
-      <br />
-
-      <select
-        name="estado"
-        value={formulario.estado}
-        onChange={cambiarValor}
-        required
-      >
-        <option value="">Seleccione un estado</option>
-        <option value="disponible">Disponible</option>
-        <option value="ocupada">Ocupada</option>
-        <option value="mantenimiento">Mantenimiento</option>
-      </select>
-
-      <br />
-      <br />
-
-      <button type="submit">
-        {aulaID !== null ? "Modificar" : "Crear"}
-      </button>
-
-      <button
-        type="button"
-        onClick={limpiarFormulario}
-        style={{ marginLeft: "10px" }}
-      >
-        Limpiar
-      </button>
-
-    </form>
+          <button
+            type="button"
+            className="secondary-btn"
+            onClick={limpiarFormulario}
+          >
+            Limpiar
+          </button>
+        </div>
+      </form>
+    </div>
   );
 }
