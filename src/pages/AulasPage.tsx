@@ -1,150 +1,31 @@
-import { useEffect, useState } from "react";
-import {
-  obtenerAulas,
-  crearAula,
-  modificarAula,
-  eliminarAula,
-} from "../lib/aulasServices";
-
-import {
-  FormularioAula,
-  AulaForm,
-} from "../components/FormularioAula";
-
-import {
-  TablaAulas,
-  Aula,
-} from "../components/TablaAulas";
+const rooms = [
+  ['Aula 201', 'Estándar • Capacidad 40 estudiantes', '45% Ocupado', 'Disponible', 'green'],
+  ['Aula 104', 'Estándar • Capacidad 25 estudiantes', '0% Ocupado', 'Mantenimiento', 'red'],
+  ['Aula 302', 'Laboratorio • Capacidad 35 estudiantes', '92% Ocupado', 'En Uso', 'blue'],
+  ['Aula 403', 'Auditorio • Capacidad 50 estudiantes', '28% Ocupado', 'Disponible', 'green'],
+  ['Aula 105', 'Estándar • Capacidad 30 estudiantes', '15% Ocupado', 'Disponible', 'green'],
+];
 
 export function AulasPage() {
-  const [aulas, setAulas] = useState<Aula[]>([]);
-  const [buscar, setBuscar] = useState("");
-  const [aulaID, setAulaID] = useState<number | null>(null);
-
-  const [formulario, setFormulario] = useState<AulaForm>({
-    nombre: "",
-    edificio: "",
-    piso: "",
-    tipo: "",
-    capacidad_maxima: "",
-    descripcion: "",
-    estado: "",
-  });
-
-  async function getAulas() {
-    try {
-      const datos = await obtenerAulas();
-      setAulas(datos);
-    } catch (error) {
-      console.error(error);
-    }
-  }
-
-  useEffect(() => {
-    getAulas();
-  }, []);
-
-  async function guardarAula(
-    e: React.FormEvent<HTMLFormElement>
-  ) {
-    e.preventDefault();
-
-    const datos = {
-      ...formulario,
-      piso: Number(formulario.piso),
-      capacidad_maxima: Number(formulario.capacidad_maxima),
-    };
-
-    try {
-      if (aulaID !== null) {
-        await modificarAula(aulaID, datos);
-      } else {
-        await crearAula(datos);
-      }
-
-      await getAulas();
-      limpiarFormulario();
-    } catch (error) {
-      console.error(error);
-    }
-  }
-
-  function editarAula(aula: Aula) {
-    setAulaID(aula.id);
-
-    setFormulario({
-      nombre: aula.nombre,
-      edificio: aula.edificio,
-      piso: aula.piso,
-      tipo: aula.tipo,
-      capacidad_maxima: aula.capacidad_maxima,
-      descripcion: aula.descripcion,
-      estado: aula.estado,
-    });
-  }
-
-  async function borrarAula(id: number) {
-    try {
-      await eliminarAula(id);
-      await getAulas();
-    } catch (error) {
-      console.error(error);
-    }
-  }
-
-  function limpiarFormulario() {
-    setFormulario({
-      nombre: "",
-      edificio: "",
-      piso: "",
-      tipo: "",
-      capacidad_maxima: "",
-      descripcion: "",
-      estado: "",
-    });
-
-    setAulaID(null);
-  }
-
-  const aulasFiltradas = aulas.filter((aula) =>
-    aula.nombre.toLowerCase().includes(buscar.toLowerCase())
-  );
-
   return (
-    <section className="catalog-page">
-
+    <section className="rooms-page">
       <div className="toolbar">
-        <div className="catalog-summary">
-          {aulas.length} Aulas Registradas
-        </div>
+          <div className="catalog-summary">5 Aulas Registradas</div>
+          <button className="primary-btn">+ Nueva Aula</button>
       </div>
 
-      <FormularioAula
-        formulario={formulario}
-        setFormulario={setFormulario}
-        guardarAula={guardarAula}
-        limpiarFormulario={limpiarFormulario}
-        aulaID={aulaID}
-      />
-
-      <br />
-
-      <input
-        type="text"
-        placeholder="Buscar aula..."
-        value={buscar}
-        onChange={(e) => setBuscar(e.target.value)}
-      />
-
-      <br />
-      <br />
-
-      <TablaAulas
-        aulas={aulasFiltradas}
-        editarAula={editarAula}
-        borrarAula={borrarAula}
-      />
-
+      <div className="rooms-grid">
+        {rooms.map((room) => (
+          <article key={room[0]} className="room-summary">
+            <div className={`room-top ${room[4]}`} />
+            <h3>{room[0]}</h3>
+            <p>{room[1]}</p>
+            <div className="room-bar"><span className={room[4]} style={{ width: room[2].split('%')[0] + '%' }} /></div>
+            <small>{room[2]}</small>
+            <span className={`room-status ${room[4]}`}>{room[3]}</span>
+          </article>
+        ))}
+      </div>
     </section>
   );
 }
