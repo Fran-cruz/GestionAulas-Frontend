@@ -36,6 +36,7 @@ export function PeriodosAcademicosPage() {
   const [periodos, setPeriodos] = useState<PeriodoAcademico[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [form, setForm] = useState<PeriodoFormValues>(emptyForm);
   const [formError, setFormError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -71,6 +72,7 @@ export function PeriodosAcademicosPage() {
     event.preventDefault();
     setFormError('');
     setActionError('');
+    setSuccessMessage('');
 
     const authUserId = getStoredAuthUserId();
     if (!authUserId) {
@@ -78,8 +80,11 @@ export function PeriodosAcademicosPage() {
       return;
     }
 
-    if (form.fecha_fin <= form.fecha_inicio) {
-      setFormError('La fecha de fin debe ser posterior a la fecha de inicio.');
+    const fechaInicio = new Date(form.fecha_inicio);
+    const fechaFin = new Date(form.fecha_fin);
+
+    if (fechaFin <= fechaInicio) {
+      setFormError('La fecha final debe ser posterior a la fecha de inicio.');
       return;
     }
 
@@ -94,6 +99,7 @@ export function PeriodosAcademicosPage() {
     try {
       await createPeriodo(payload, authUserId);
       setForm(emptyForm);
+      setSuccessMessage('Período académico creado correctamente.');
       await loadPeriodos();
     } catch (error) {
       if (error instanceof ApiError) {
@@ -109,12 +115,22 @@ export function PeriodosAcademicosPage() {
 
   const handleSelectPeriodo = async (periodo: PeriodoAcademico) => {
     setActionError('');
+    setSuccessMessage('');
+
+    const confirmed = window.confirm(
+      `¿Deseas seleccionar "${periodo.nombre}" como el período académico activo?`,
+    );
+    if (!confirmed) {
+      return;
+    }
+
     setUpdatingId(periodo.id);
 
     try {
       await activatePeriodo(periodo.id);
 
       await loadPeriodos();
+      setSuccessMessage(`"${periodo.nombre}" fue seleccionado como período activo.`);
     } catch (error) {
       if (error instanceof ApiError) {
         setActionError(error.message);
@@ -134,11 +150,19 @@ export function PeriodosAcademicosPage() {
     }
 
     setActionError('');
+    setSuccessMessage('');
+
+    const confirmed = window.confirm(`¿Deseas borrar el período "${periodo.nombre}"?`);
+    if (!confirmed) {
+      return;
+    }
+
     setDeletingId(periodo.id);
 
     try {
       await deletePeriodo(periodo.id);
       await loadPeriodos();
+      setSuccessMessage(`"${periodo.nombre}" fue eliminado correctamente.`);
     } catch (error) {
       if (error instanceof ApiError) {
         setActionError(error.message);
@@ -166,6 +190,7 @@ export function PeriodosAcademicosPage() {
 
       {loadError ? <div className="feedback error">{loadError}</div> : null}
       {actionError ? <div className="feedback error">{actionError}</div> : null}
+      {successMessage ? <div className="feedback success">{successMessage}</div> : null}
 
       <div className="content-grid" style={{ gridTemplateColumns: '0.82fr 1.18fr', paddingTop: 40 }}>
         <section className="table-card" style={{ padding: 28, minHeight: 560 }}>
