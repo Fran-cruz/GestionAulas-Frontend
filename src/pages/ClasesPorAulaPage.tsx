@@ -1,194 +1,538 @@
-import { useMemo, useState } from 'react';
-import { aulas, areaClass, areaLabels, sections, type Aula, type AreaFilter, type Section } from '../data/scheduling';
+import {useEffect, useMemo, useRef, useState} from 'react';
+import {ApiError} from '../lib/api';
+import {createAssignment, fetchScheduleSnapshot, updateAssignment} from '../features/schedule/api';
+import {
+  normalizeAssignment,
+  type ScheduleAreaKey,
+  type ScheduleAssignment,
+  type ScheduleRoom,
+  type ScheduleSection,
+  scheduleSectionFilters,
+  type ScheduleSnapshot,
+} from '../features/schedule/model';
 
-type AssignmentMap = Record<string, string[]>;
+type RoomTypeFilter = 'all' | 'estandar' | 'laboratorio' | 'auditorio' | 'otro' | 'mantenimiento';
 
-const roomFilters: Array<{ value: AreaFilter; label: string }> = [
-  { value: 'all', label: 'Todos' },
-  { value: 'ing', label: 'Ing.' },
-  { value: 'cienc', label: 'Cienc.' },
-  { value: 'hum', label: 'Hum.' },
-  { value: 'admin', label: 'Admin.' },
+const roomTypeFilters: Array<{ value: RoomTypeFilter; label: string }> = [
+  { value: 'all', label: 'Todas las aulas' },
+  { value: 'estandar', label: 'Estándar' },
+  { value: 'laboratorio', label: 'Laboratorio' },
+  { value: 'auditorio', label: 'Auditorio' },
+  { value: 'otro', label: 'Otras' },
+  { value: 'mantenimiento', label: 'Mantenimiento' },
 ];
 
-const aulaFilters = ['all', 'estandar', 'laboratorio', 'auditorio', 'mantenimiento'] as const;
-
-function parseCapacityLabel(aula: Aula, assigned: Section[]) {
-  const used = assigned.reduce((sum, item) => sum + item.students, 0);
-  const occupancy = Math.round((used / aula.capacity) * 100);
-  return { used, occupancy: Number.isFinite(occupancy) ? occupancy : 0 };
+function areaColorClass(areaKey: ScheduleAreaKey): '' | 'green' | 'orange' {
+  if (areaKey === 'cienc') return 'green';
+  if (areaKey === 'hum' || areaKey === 'admin') return 'orange';
+  return '';
 }
 
+function getErrorMessage(error: unknown) {
+  if (error instanceof ApiError) {
+    return error.message;
+  }
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return 'Ocurrió un error inesperado.';
+}
+
+// Info mínima que necesita la tarjeta "fantasma" que sigue al mouse mientras arrastramos.
+type DragGhostInfo = {
+  sectionId: number;
+  sourceRoomId: number | null;
+  code: string;
+  name: string;
+  areaLabel: string;
+  colorClass: '' | 'green' | 'orange';
+};
+
 export function ClasesPorAulaPage() {
-  const [sectionFilter, setSectionFilter] = useState<AreaFilter>('all');
-  const [aulaFilter, setAulaFilter] = useState<(typeof aulaFilters)[number]>('all');
-  const [draggingId, setDraggingId] = useState<string | null>(null);
-  const [message, setMessage] = useState('Arrastra una sección hacia un aula disponible.');
-  const [assignments, setAssignments] = useState<AssignmentMap>({
-    'AULA-201': ['MAT-301'],
-    'AULA-302': ['INF-102'],
-  });
+  const [snapshot, setSnapshot] = useState<ScheduleSnapshot | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
-  const sectionIndex = useMemo(() => Object.fromEntries(sections.map((item) => [item.id, item])), []);
+  const [sectionFilter, setSectionFilter] = useState<'all' | ScheduleAreaKey>('all');
+  const [roomTypeFilter, setRoomTypeFilter] = useState<RoomTypeFilter>('all');
+  const [message, setMessage] = useState('Cargando información desde el backend...');
 
-  const unassignedSections = sections.filter((section) => !Object.values(assignments).some((list) => list.includes(section.id)));
-  const filteredSections = unassignedSections.filter((section) => sectionFilter === 'all' || section.area === sectionFilter);
-  const filteredAulas = aulas.filter((aula) => {
-    if (aulaFilter === 'all') return true;
-    if (aulaFilter === 'mantenimiento') return Boolean(aula.maintenance);
-    return aula.type === aulaFilter;
-  });
+  // --- Arrastre propio (no usamos el drag-and-drop nativo del navegador) ---
+  // draggingSectionId: qué sección se está moviendo ahora mismo (controla estilos "dragging").
+  // hoverRoomId: sobre qué aula está el cursor ahora mismo (controla el resaltado de esa columna).
+  // dragInfoRef / dragPosRef: datos que necesitamos leer dentro de los listeners globales sin
+  // volver a crearlos en cada pixel de movimiento (evita relentizar el arrastre).
+  const [draggingSectionId, setDraggingSectionId] = useState<number | null>(null);
+  const [hoverRoomId, setHoverRoomId] = useState<number | null>(null);
+  const [hoverUnassignZone, setHoverUnassignZone] = useState(false);
+  const dragInfoRef = useRef<DragGhostInfo | null>(null);
+  const ghostRef = useRef<HTMLDivElement | null>(null);
+  const hoverRoomIdRef = useRef<number | null>(null);
+  const hoverUnassignZoneRef = useRef(false);
 
-  const handleDrop = (aulaId: string) => {
-    if (!draggingId) return;
-    const section = sectionIndex[draggingId];
-    const aula = aulas.find((item) => item.id === aulaId);
-    if (!section || !aula) return;
-
-    const currentAssignments = Object.entries(assignments).flatMap(([assignedAulaId, ids]) =>
-      ids.map((id) => ({ assignedAulaId, id })),
-    );
-    const alreadyAssignedIds = currentAssignments.filter((item) => item.id === section.id);
-    const assignedToOtherRoom = alreadyAssignedIds.find((item) => item.assignedAulaId !== aulaId);
-
-    if (aula.maintenance) {
-      setMessage(`No se puede asignar ${section.code}: el aula está en mantenimiento.`);
-      setDraggingId(null);
-      return;
-    }
-    if (section.students > aula.capacity) {
-      setMessage(`No se puede asignar ${section.code}: capacidad excedida en ${aula.code}.`);
-      setDraggingId(null);
-      return;
+  const loadSnapshot = async (options?: { silent?: boolean; keepMessage?: boolean }) => {
+    if (!options?.silent) {
+      setLoading(true);
     }
 
-    setAssignments((current) => {
-      const next: AssignmentMap = {};
-      for (const [roomId, ids] of Object.entries(current)) {
-        next[roomId] = ids.filter((id) => id !== section.id);
+    try {
+      const nextSnapshot = await fetchScheduleSnapshot();
+      setSnapshot(nextSnapshot);
+      setLoadError(null);
+
+      if (!options?.keepMessage) {
+        if (!nextSnapshot.rooms.length) {
+          setMessage('No hay aulas registradas en el backend.');
+        } else if (!nextSnapshot.sections.length) {
+          setMessage('No hay secciones registradas en el backend.');
+        } else if (!nextSnapshot.activePeriod) {
+          setMessage('No existe un período académico activo. Créalo en el módulo de Períodos para poder asignar aulas.');
+        } else {
+          setMessage('Haz clic y arrastra una sección hacia un aula disponible.');
+        }
       }
-      next[aulaId] = [...(next[aulaId] ?? []).filter((id) => id !== section.id), section.id];
-      return next;
-    });
-
-    setMessage(
-      assignedToOtherRoom
-        ? `${section.code} se movió a ${aula.code}.`
-        : `${section.code} asignado a ${aula.code}.`,
-    );
-    setDraggingId(null);
+    } catch (err) {
+      setLoadError(getErrorMessage(err));
+      setMessage('No se pudo cargar la información desde el backend.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const assignedSectionIds = Object.values(assignments).flat();
+  useEffect(() => {
+    void loadSnapshot();
+  }, []);
+
+  const rooms = snapshot?.rooms ?? [];
+  const sections = useMemo(() => snapshot?.sections.filter((section) => section.active) ?? [], [snapshot]);
+  const activePeriod = snapshot?.activePeriod ?? null;
+
+  const sectionIndex = useMemo(
+      () => new Map<number, ScheduleSection>(sections.map((section) => [section.id, section])),
+      [sections],
+  );
+
+  const teacherIndex = useMemo(
+      () => new Map<number, string>((snapshot?.teachers ?? []).map((teacher) => [teacher.id, teacher.name])),
+      [snapshot],
+  );
+
+  // Solo cuentan las asignaciones del período activo; sin período activo no hay nada "asignado" todavía.
+  const visibleAssignments = useMemo(() => {
+    if (!activePeriod) return [] as ScheduleAssignment[];
+    return (snapshot?.assignments ?? []).filter((assignment) => assignment.periodId === activePeriod.id);
+  }, [activePeriod, snapshot]);
+
+  const assignmentBySectionId = useMemo(
+      () => new Map<number, ScheduleAssignment>(visibleAssignments.map((assignment) => [assignment.sectionId, assignment])),
+      [visibleAssignments],
+  );
+
+  const unassignedSections = sections.filter((section) => {
+    const assignment = assignmentBySectionId.get(section.id);
+    return !assignment || !assignment.roomId;
+  });
+
+  const filteredSections = unassignedSections.filter(
+      (section) => sectionFilter === 'all' || section.areaKey === sectionFilter,
+  );
+
+  const filteredRooms = rooms.filter((room) => {
+    if (roomTypeFilter === 'all') return true;
+    if (roomTypeFilter === 'mantenimiento') return room.maintenance;
+    return room.typeKey === roomTypeFilter;
+  });
+
+  function teacherLabel(section: ScheduleSection, assignment?: ScheduleAssignment) {
+    const teacherId = assignment?.teacherId ?? section.teacherId;
+    if (!teacherId) return 'Sin asignar';
+    return teacherIndex.get(teacherId) ?? section.teacherName;
+  }
+
+  async function handleDrop(room: ScheduleRoom, sectionId: number) {
+    const section = sectionIndex.get(sectionId);
+    if (!section) return;
+
+    if (room.maintenance) {
+      setMessage(`No se puede asignar ${section.name}: el aula está en mantenimiento.`);
+      return;
+    }
+
+    const existing = assignmentBySectionId.get(section.id);
+
+    if (existing?.roomId === room.id) {
+      setMessage(`${section.name} ya está en ${room.code}.`);
+      return;
+    }
+
+    const enrolled = existing?.students ?? 0;
+    let overCapacityConfirmed = existing?.overCapacityConfirmed ?? false;
+
+    if (enrolled > room.capacity && !overCapacityConfirmed) {
+      const proceed = window.confirm(
+          `${section.name} tiene ${enrolled} alumnos y ${room.code} tiene capacidad para ${room.capacity}.\n¿Moverla de todas formas (sobrecupo)?`,
+      );
+
+      if (!proceed) {
+        setMessage(`Movimiento cancelado: capacidad excedida en ${room.code}.`);
+        return;
+      }
+
+      overCapacityConfirmed = true;
+    }
+
+    if (!existing && !activePeriod) {
+      setMessage('No hay un período académico activo. Créalo en el módulo de Períodos antes de asignar aulas.');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      let saved;
+      if (existing) {
+        saved = await updateAssignment(existing.id, {
+          id_aula: room.id,
+          sobrecargo_confirmado: overCapacityConfirmed,
+        });
+      } else {
+        saved = await createAssignment({
+          id_seccion: section.id,
+          id_periodo: activePeriod!.id,
+          id_aula: room.id,
+          id_docente: section.teacherId,
+          sobrecargo_confirmado: overCapacityConfirmed,
+        });
+      }
+      // eslint-disable-next-line no-console
+      console.debug('[ClasesPorAula] asignación guardada por el backend →', saved);
+      if (saved.id_aula !== room.id) {
+        // eslint-disable-next-line no-console
+        console.warn(
+            `[ClasesPorAula] el backend respondió id_aula=${saved.id_aula} pero se soltó sobre el aula ${room.id} (${room.code}). Esto es un problema del backend, no del arrastre. Revisa storage/logs/laravel.log.`,
+        );
+      }
+
+      const normalized = normalizeAssignment(saved);
+      if (normalized) {
+        setSnapshot((prev) => {
+          if (!prev) return prev;
+          const withoutOld = prev.assignments.filter((a) => a.id !== normalized.id);
+          return { ...prev, assignments: [...withoutOld, normalized] };
+        });
+      }
+
+      setMessage(
+          existing ? `${section.name} se movió a ${room.code}.` : `${section.name} asignada a ${room.code}.`,
+      );
+
+      void loadSnapshot({ silent: true, keepMessage: true });
+    } catch (err) {
+      setMessage(`⚠️ ${getErrorMessage(err)}`);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleUnassign(sectionId: number) {
+    const section = sectionIndex.get(sectionId);
+    if (!section) return;
+
+    const existing = assignmentBySectionId.get(section.id);
+    if (!existing || !existing.roomId) {
+      // Ya está sin aula, no hay nada que hacer.
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const saved = await updateAssignment(existing.id, { id_aula: null });
+
+      const normalized = normalizeAssignment(saved);
+      if (normalized) {
+        setSnapshot((prev) => {
+          if (!prev) return prev;
+          const withoutOld = prev.assignments.filter((a) => a.id !== normalized.id);
+          return { ...prev, assignments: [...withoutOld, normalized] };
+        });
+      }
+
+      setMessage(`${section.name} volvió a Secciones sin Aula.`);
+      void loadSnapshot({ silent: true, keepMessage: true });
+    } catch (err) {
+      setMessage(`⚠️ ${getErrorMessage(err)}`);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function moveGhostTo(x: number, y: number) {
+    if (ghostRef.current) {
+      ghostRef.current.style.transform = `translate(${x + 16}px, ${y + 16}px)`;
+    }
+  }
+
+  function roomIdUnderPoint(x: number, y: number): number | null {
+    const el = document.elementFromPoint(x, y);
+    const roomEl = el instanceof Element ? el.closest<HTMLElement>('[data-room-id]') : null;
+    if (!roomEl) return null;
+    const parsed = Number(roomEl.dataset.roomId);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  function unassignZoneUnderPoint(x: number, y: number): boolean {
+    const el = document.elementFromPoint(x, y);
+    return el instanceof Element ? el.closest('[data-unassign-zone]') !== null : false;
+  }
+
+  function handlePointerMoveWindow(event: PointerEvent) {
+    moveGhostTo(event.clientX, event.clientY);
+
+    const isOverUnassign = unassignZoneUnderPoint(event.clientX, event.clientY);
+    hoverUnassignZoneRef.current = isOverUnassign;
+    setHoverUnassignZone((prev) => (prev === isOverUnassign ? prev : isOverUnassign));
+
+    const roomId = isOverUnassign ? null : roomIdUnderPoint(event.clientX, event.clientY);
+    hoverRoomIdRef.current = roomId;
+    setHoverRoomId((prev) => (prev === roomId ? prev : roomId));
+  }
+
+  function handlePointerUpWindow(event: PointerEvent) {
+    window.removeEventListener('pointermove', handlePointerMoveWindow);
+    window.removeEventListener('pointerup', handlePointerUpWindow);
+
+    const info = dragInfoRef.current;
+    dragInfoRef.current = null;
+    setDraggingSectionId(null);
+    setHoverRoomId(null);
+    setHoverUnassignZone(false);
+
+    if (!info) return;
+
+    const droppedOnUnassignZone = unassignZoneUnderPoint(event.clientX, event.clientY) || hoverUnassignZoneRef.current;
+    hoverUnassignZoneRef.current = false;
+
+    if (droppedOnUnassignZone) {
+      hoverRoomIdRef.current = null;
+      void handleUnassign(info.sectionId);
+      return;
+    }
+
+    // Preferimos el punto exacto de soltar; si por un movimiento rápido cae justo
+    // en el borde/gap entre columnas, usamos el último aula que sí se resaltó.
+    const roomId = roomIdUnderPoint(event.clientX, event.clientY) ?? hoverRoomIdRef.current;
+    hoverRoomIdRef.current = null;
+    if (roomId === null) {
+      setMessage('Suelta la clase sobre un aula para asignarla (se canceló: no soltaste sobre ninguna).');
+      return;
+    }
+
+    const room = rooms.find((candidate) => candidate.id === roomId);
+    if (!room) return;
+
+    void handleDrop(room, info.sectionId);
+  }
+
+  function beginDrag(event: React.PointerEvent, info: DragGhostInfo) {
+    // Solo el botón principal (o toque) inicia el arrastre.
+    if (event.button !== undefined && event.button !== 0) return;
+    event.preventDefault();
+
+    dragInfoRef.current = info;
+    hoverRoomIdRef.current = null;
+    hoverUnassignZoneRef.current = false;
+    setDraggingSectionId(info.sectionId);
+    moveGhostTo(event.clientX, event.clientY);
+
+    window.addEventListener('pointermove', handlePointerMoveWindow);
+    window.addEventListener('pointerup', handlePointerUpWindow);
+  }
+
+  // Por si el componente se desmonta a mitad de un arrastre.
+  useEffect(() => {
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMoveWindow);
+      window.removeEventListener('pointerup', handlePointerUpWindow);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  if (loading) {
+    return (
+        <section className="kanban-page">
+          <div style={{ padding: 24 }}>Cargando información del backend…</div>
+        </section>
+    );
+  }
+
+  if (loadError) {
+    return (
+        <section className="kanban-page">
+          <div style={{ padding: 24 }}>
+            <p className="feedback">{loadError}</p>
+            <button className="chip-btn" onClick={() => loadSnapshot()}>Reintentar</button>
+          </div>
+        </section>
+    );
+  }
+
+  const isDragging = draggingSectionId !== null;
+  const ghostInfo = dragInfoRef.current;
 
   return (
-    <section className="kanban-page">
-      <aside className="kanban-left">
-        <div className="section-head dark">
-          <strong>Secciones sin Aula</strong>
-          <span>{filteredSections.length} visibles · {unassignedSections.length} pendientes</span>
+      <section className="kanban-page">
+        {/* Tarjeta fantasma: sigue al cursor mientras se arrastra una clase. */}
+        <div ref={ghostRef} className={`drag-ghost ${isDragging ? 'visible' : ''} ${ghostInfo ? areaColorClass(sectionIndex.get(ghostInfo.sectionId)?.areaKey ?? 'otro') : ''}`}>
+          {ghostInfo ? (
+              <>
+                <strong>{ghostInfo.code}</strong>
+                <span>{ghostInfo.name}</span>
+              </>
+          ) : null}
         </div>
-        <div className="search-box">🔎 Buscar sección...</div>
-        <div className="filter-row wrap">
-          {roomFilters.map((filter) => (
-            <button
-              key={filter.value}
-              className={`chip-btn ${sectionFilter === filter.value ? 'active' : ''}`}
-              onClick={() => setSectionFilter(filter.value)}
-            >
-              {filter.label}
-            </button>
-          ))}
-        </div>
-        <p className="feedback">{message}</p>
-        <div className="stack">
-          {filteredSections.map((item) => (
-            <article
-              key={item.id}
-              draggable
-              onDragStart={() => setDraggingId(item.id)}
-              onDragEnd={() => setDraggingId(null)}
-              className={`subject-card ${areaClass[item.area]} ${draggingId === item.id ? 'dragging' : ''}`}
-            >
-              <div className="subject-tag">{areaLabels[item.area]}</div>
-              <div className="subject-code">{item.code}</div>
-              <div className="subject-name">{item.name}</div>
-              <div className="subject-teacher">👤 {item.teacher}</div>
-              <div className="subject-meta">
-                <span>👥 {item.students} alumnos</span>
-                <span>⏱ {item.duration}h/sem</span>
-              </div>
-            </article>
-          ))}
-        </div>
-      </aside>
 
-      <main className="kanban-board">
-        <div className="board-header">
-          <div>
-            <h2>Aulas Disponibles — Arrastrar secciones para asignar</h2>
-            <p>Arrastra una tarjeta de sección hacia la columna del aula correspondiente</p>
+        <aside
+            className={`kanban-left ${isDragging && hoverUnassignZone ? 'active' : ''}`}
+            data-unassign-zone="true"
+        >
+          <div className="section-head dark">
+            <strong>Secciones sin Aula</strong>
+            <span>{filteredSections.length} visibles · {unassignedSections.length} pendientes</span>
           </div>
-          <div className="filter-row inline">
-            {aulaFilters.map((filter) => (
-              <button
-                key={filter}
-                className={`chip-btn ${aulaFilter === filter ? 'active' : ''}`}
-                onClick={() => setAulaFilter(filter)}
-              >
-                {filter === 'all' ? 'Todas las aulas' : filter}
-              </button>
+          <div className="search-box">🔎 Buscar sección...</div>
+          <div className="filter-row wrap">
+            {scheduleSectionFilters.map((filter) => (
+                <button
+                    key={filter.value}
+                    className={`chip-btn ${sectionFilter === filter.value ? 'active' : ''}`}
+                    onClick={() => setSectionFilter(filter.value)}
+                >
+                  {filter.label}
+                </button>
             ))}
           </div>
-        </div>
+          <p className={`feedback ${message.startsWith('⚠️') ? 'error' : ''}`}>{saving ? 'Guardando…' : message}</p>
+          {isDragging && dragInfoRef.current?.sourceRoomId !== null && (
+              <p className={`feedback unassign-hint ${hoverUnassignZone ? 'active' : ''}`}>
+                ↩ Suelta aquí para quitarla de su aula
+              </p>
+          )}
+          <div className="stack">
+            {filteredSections.map((item) => (
+                <article
+                    key={item.id}
+                    onPointerDown={(event) =>
+                        beginDrag(event, {
+                          sectionId: item.id,
+                          sourceRoomId: null,
+                          code: item.code,
+                          name: item.name,
+                          areaLabel: item.areaLabel,
+                          colorClass: areaColorClass(item.areaKey),
+                        })
+                    }
+                    className={`subject-card ${areaColorClass(item.areaKey)} ${draggingSectionId === item.id ? 'dragging' : ''}`}
+                >
+                  <div className="subject-tag">{item.areaLabel}</div>
+                  <div className="subject-code">{item.code}</div>
+                  <div className="subject-name">{item.name}</div>
+                  <div className="subject-teacher"> {teacherLabel(item)}</div>
+                  <div className="subject-meta">
+                    <span>  {assignmentBySectionId.get(item.id)?.students ?? 0} alumnos</span>
+                    <span> {item.weeklyHours}h/sem</span>
+                  </div>
+                </article>
+            ))}
+            {filteredSections.length === 0 && (
+                <p className="feedback">No hay secciones pendientes con este filtro.</p>
+            )}
+          </div>
+        </aside>
 
-        <div className="room-grid">
-          {filteredAulas.map((room) => {
-            const assigned = (assignments[room.id] ?? []).map((id) => sectionIndex[id]);
-            const { used, occupancy } = parseCapacityLabel(room, assigned);
+        <main className="kanban-board">
+          <div className="board-header">
+            <div>
+              <h2>Aulas Disponibles — Arrastrar secciones para asignar</h2>
+              <p>{activePeriod ? `Período: ${activePeriod.name}` : 'Sin período académico activo'}</p>
+            </div>
+            <div className="filter-row inline">
+              {roomTypeFilters.map((filter) => (
+                  <button
+                      key={filter.value}
+                      className={`chip-btn ${roomTypeFilter === filter.value ? 'active' : ''}`}
+                      onClick={() => setRoomTypeFilter(filter.value)}
+                  >
+                    {filter.label}
+                  </button>
+              ))}
+            </div>
+          </div>
 
-            return (
-              <section
-                key={room.id}
-                className={`room-column ${room.maintenance ? 'disabled' : ''}`}
-                onDragOver={(event) => event.preventDefault()}
-                onDrop={() => handleDrop(room.id)}
-              >
-                <header className="room-head">
-                  <strong>{room.code}</strong>
-                  <span>{`${room.type === 'estandar' ? 'Estándar' : room.type === 'laboratorio' ? 'Laboratorio' : 'Auditorio'} · Cap. ${room.capacity}`}</span>
-                  <small>{occupancy}% ocupado</small>
-                </header>
+          <div className="room-grid">
+            {filteredRooms.map((room) => {
+              const assigned = visibleAssignments.filter((a) => a.roomId === room.id);
+              const used = assigned.reduce((sum, a) => sum + a.students, 0);
+              const occupancy = room.capacity ? Math.round((used / room.capacity) * 100) : 0;
+              const isHovered = isDragging && hoverRoomId === room.id && !room.maintenance;
 
-                <div className="capacity-bar">
-                  <span style={{ width: `${Math.min(occupancy, 100)}%` }} />
-                </div>
-                <p className="room-caption">Usado: {used} / {room.capacity}</p>
+              return (
+                  <section
+                      key={room.id}
+                      data-room-id={room.id}
+                      className={`room-column ${room.maintenance ? 'disabled' : ''} ${isHovered ? 'active' : ''}`}
+                  >
+                    <header className="room-head">
+                      <strong>{room.code}</strong>
+                      <span>{`${room.typeLabel} · Cap. ${room.capacity}`}</span>
+                      <small>{occupancy}% ocupado</small>
+                    </header>
 
-                {assigned.map((item) => (
-                  <article key={item.id} className={`room-card ${areaClass[item.area]}`}>
-                    <div className="subject-tag">{areaLabels[item.area]}</div>
-                    <strong>{item.code}</strong>
-                    <span>{item.name}</span>
-                    <small>👤 {item.teacher}</small>
-                    <b>👥 {item.students} alumnos</b>
-                  </article>
-                ))}
+                    <div className="capacity-bar">
+                      <span style={{ width: `${Math.min(occupancy, 100)}%` }} />
+                    </div>
+                    <p className="room-caption">Usado: {used} / {room.capacity}</p>
 
-                <div className={`drop-zone ${room.maintenance || draggingId === null ? '' : 'highlighted'}`}>
-                  <span>{room.maintenance ? 'Aula en mantenimiento' : '+ Soltar sección aquí'}</span>
-                </div>
-              </section>
-            );
-          })}
-          <section className="empty-column" />
-        </div>
+                    {assigned.map((a) => {
+                      const section = sectionIndex.get(a.sectionId);
+                      if (!section) return null;
+                      return (
+                          <article
+                              key={a.id}
+                              onPointerDown={(event) =>
+                                  beginDrag(event, {
+                                    sectionId: section.id,
+                                    sourceRoomId: room.id,
+                                    code: section.code,
+                                    name: section.name,
+                                    areaLabel: section.areaLabel,
+                                    colorClass: areaColorClass(section.areaKey),
+                                  })
+                              }
+                              className={`room-card ${areaColorClass(section.areaKey)} ${draggingSectionId === section.id ? 'dragging' : ''}`}
+                          >
+                            <div className="subject-tag">{section.areaLabel}</div>
+                            <strong>{section.code}</strong>
+                            <span>{section.name}</span>
+                            <small> {teacherLabel(section, a)}</small>
+                            <b> {a.students} alumnos</b>
+                          </article>
+                      );
+                    })}
 
-        <div className="assignment-summary">
-          <strong>Asignadas: {assignedSectionIds.length}</strong>
-          <span>Capacidad validada antes de aceptar cualquier arrastre</span>
-        </div>
-      </main>
-    </section>
+                    <div className={`drop-zone ${room.maintenance || !isDragging ? '' : hoverRoomId === room.id ? 'highlighted' : ''}`}>
+                      <span>{room.maintenance ? 'Aula en mantenimiento' : '+ Soltar sección aquí'}</span>
+                    </div>
+                  </section>
+              );
+            })}
+            <section className="empty-column" />
+          </div>
+
+          <div className="assignment-summary">
+            <strong>Asignadas: {visibleAssignments.filter((a) => a.roomId).length}</strong>
+            <span>Capacidad validada antes de aceptar cualquier arrastre</span>
+          </div>
+        </main>
+      </section>
   );
 }
