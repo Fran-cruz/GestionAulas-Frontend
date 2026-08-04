@@ -56,7 +56,11 @@ export function TablaAulas({
 
                   <button
                     className="delete-btn"
-                    onClick={() => borrarAula(aula.id)}
+                    onClick={() => {
+                      if (aula.id !== undefined) {
+                        borrarAula(aula.id);
+                      }
+                    }}
                     style={{ marginLeft: "8px" }}
                   >
                     Eliminar
