@@ -6,14 +6,16 @@ import {
   createPeriodo,
   formatEstado,
   formatFecha,
+  deletePeriodo,
   listPeriodos,
+  updatePeriodo,
 } from '../lib/periodos';
 
 const emptyForm: PeriodoFormValues = {
   nombre: '',
   fecha_inicio: '',
   fecha_fin: '',
-  estado: 'ACTIVO',
+  estado: 'CERRADO',
 };
 
 function getStoredAuthUserId() {
@@ -37,6 +39,9 @@ export function PeriodosAcademicosPage() {
   const [form, setForm] = useState<PeriodoFormValues>(emptyForm);
   const [formError, setFormError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [actionError, setActionError] = useState('');
+  const [updatingId, setUpdatingId] = useState<number | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   const loadPeriodos = async () => {
     setLoading(true);
@@ -65,6 +70,7 @@ export function PeriodosAcademicosPage() {
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setFormError('');
+    setActionError('');
 
     const authUserId = getStoredAuthUserId();
     if (!authUserId) {
@@ -82,6 +88,7 @@ export function PeriodosAcademicosPage() {
     const payload: PeriodoFormValues = {
       ...form,
       nombre: form.nombre.trim(),
+      estado: 'CERRADO',
     };
 
     try {
@@ -100,6 +107,59 @@ export function PeriodosAcademicosPage() {
     }
   };
 
+  const handleSelectPeriodo = async (periodo: PeriodoAcademico) => {
+    setActionError('');
+    setUpdatingId(periodo.id);
+
+    const activePeriodos = periodos.filter(
+      (item) => item.id !== periodo.id && item.estado.toUpperCase() === 'ACTIVO',
+    );
+
+    try {
+      await Promise.all([
+        ...activePeriodos.map((item) =>
+          updatePeriodo(item.id, {
+            nombre: item.nombre,
+            fecha_inicio: item.fecha_inicio.split('T')[0],
+            fecha_fin: item.fecha_fin.split('T')[0],
+            estado: 'CERRADO',
+          }),
+        ),
+        updatePeriodo(periodo.id, {
+          nombre: periodo.nombre,
+          fecha_inicio: periodo.fecha_inicio.split('T')[0],
+          fecha_fin: periodo.fecha_fin.split('T')[0],
+          estado: 'ACTIVO',
+        }),
+      ]);
+
+      await loadPeriodos();
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'No se pudo activar el período.');
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const handleDeletePeriodo = async (periodo: PeriodoAcademico) => {
+    if (periodo.estado.toUpperCase() === 'ACTIVO') {
+      setActionError('No se puede borrar el período activo.');
+      return;
+    }
+
+    setActionError('');
+    setDeletingId(periodo.id);
+
+    try {
+      await deletePeriodo(periodo.id);
+      await loadPeriodos();
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'No se pudo borrar el período.');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   return (
     <section className="catalog-page">
       <div className="toolbar">
@@ -107,9 +167,10 @@ export function PeriodosAcademicosPage() {
       </div>
 
       {loadError ? <div className="feedback error">{loadError}</div> : null}
+      {actionError ? <div className="feedback error">{actionError}</div> : null}
 
-      <div className="content-grid" style={{ gridTemplateColumns: '1fr 1fr', paddingTop: 40 }}>
-        <section className="table-card" style={{ padding: 32, minHeight: 560 }}>
+      <div className="content-grid" style={{ gridTemplateColumns: '0.82fr 1.18fr', paddingTop: 40 }}>
+        <section className="table-card" style={{ padding: 28, minHeight: 560 }}>
           <h3 style={{ marginTop: 0 }}>Crear Nuevo Período Académico</h3>
           <div style={{ borderTop: '1px solid #dbe4f0', margin: '48px 0 28px' }} />
 
@@ -173,27 +234,6 @@ export function PeriodosAcademicosPage() {
               />
             </label>
 
-            <label className="period-field">
-              <span>Estado</span>
-              <select
-                value={form.estado}
-                onChange={handleChange('estado')}
-                style={{
-                  fontSize: 20,
-                  fontWeight: 500,
-                  border: 'none',
-                  borderBottom: '1px solid #dbe4f0',
-                  padding: '8px 0',
-                  outline: 'none',
-                  color: '#1a1a1a',
-                  background: 'transparent',
-                }}
-              >
-                <option value="ACTIVO">Activo</option>
-                <option value="CERRADO">Cerrado</option>
-              </select>
-            </label>
-
             {formError ? <div className="feedback error">{formError}</div> : null}
 
             <button
@@ -207,7 +247,7 @@ export function PeriodosAcademicosPage() {
           </form>
         </section>
 
-        <section className="table-card" style={{ padding: 24, minHeight: 660 }}>
+        <section className="table-card" style={{ padding: 22, minHeight: 660, overflowX: 'auto' }}>
           <h3 style={{ marginTop: 0, marginBottom: 24 }}>Períodos Anteriores</h3>
           <table>
             <thead>
@@ -217,16 +257,17 @@ export function PeriodosAcademicosPage() {
                 <th>Fin</th>
                 <th>Secciones</th>
                 <th>Estado</th>
+                <th>Acciones</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={5}>Cargando períodos...</td>
+                  <td colSpan={6}>Cargando períodos...</td>
                 </tr>
               ) : periodos.length === 0 ? (
                 <tr>
-                  <td colSpan={5}>No hay períodos registrados todavía.</td>
+                  <td colSpan={6}>No hay períodos registrados todavía.</td>
                 </tr>
               ) : (
                 periodos.map((periodo) => (
@@ -239,6 +280,30 @@ export function PeriodosAcademicosPage() {
                       <span className={`tag state ${periodo.estado.toLowerCase()}`}>
                         {formatEstado(periodo.estado)}
                       </span>
+                    </td>
+                    <td>
+                      <div className="row-actions">
+                        <button
+                          type="button"
+                          className="secondary-btn"
+                          onClick={() => handleSelectPeriodo(periodo)}
+                          disabled={updatingId === periodo.id || periodo.estado.toUpperCase() === 'ACTIVO'}
+                        >
+                          {periodo.estado.toUpperCase() === 'ACTIVO'
+                            ? 'Activo'
+                            : updatingId === periodo.id
+                              ? 'Seleccionando...'
+                              : 'Seleccionar'}
+                        </button>
+                        <button
+                          type="button"
+                          className="delete-btn"
+                          onClick={() => handleDeletePeriodo(periodo)}
+                          disabled={deletingId === periodo.id || periodo.estado.toUpperCase() === 'ACTIVO'}
+                        >
+                          {deletingId === periodo.id ? 'Borrando...' : 'Borrar'}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
