@@ -65,9 +65,11 @@ export function ClasesPorAulaPage() {
   // volver a crearlos en cada pixel de movimiento (evita relentizar el arrastre).
   const [draggingSectionId, setDraggingSectionId] = useState<number | null>(null);
   const [hoverRoomId, setHoverRoomId] = useState<number | null>(null);
+  const [hoverUnassignZone, setHoverUnassignZone] = useState(false);
   const dragInfoRef = useRef<DragGhostInfo | null>(null);
   const ghostRef = useRef<HTMLDivElement | null>(null);
   const hoverRoomIdRef = useRef<number | null>(null);
+  const hoverUnassignZoneRef = useRef(false);
 
   const loadSnapshot = async (options?: { silent?: boolean; keepMessage?: boolean }) => {
     if (!options?.silent) {
@@ -240,6 +242,38 @@ export function ClasesPorAulaPage() {
     }
   }
 
+  async function handleUnassign(sectionId: number) {
+    const section = sectionIndex.get(sectionId);
+    if (!section) return;
+
+    const existing = assignmentBySectionId.get(section.id);
+    if (!existing || !existing.roomId) {
+      // Ya está sin aula, no hay nada que hacer.
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const saved = await updateAssignment(existing.id, { id_aula: null });
+
+      const normalized = normalizeAssignment(saved);
+      if (normalized) {
+        setSnapshot((prev) => {
+          if (!prev) return prev;
+          const withoutOld = prev.assignments.filter((a) => a.id !== normalized.id);
+          return { ...prev, assignments: [...withoutOld, normalized] };
+        });
+      }
+
+      setMessage(`${section.name} volvió a Secciones sin Aula.`);
+      void loadSnapshot({ silent: true, keepMessage: true });
+    } catch (err) {
+      setMessage(`⚠️ ${getErrorMessage(err)}`);
+    } finally {
+      setSaving(false);
+    }
+  }
+
   function moveGhostTo(x: number, y: number) {
     if (ghostRef.current) {
       ghostRef.current.style.transform = `translate(${x + 16}px, ${y + 16}px)`;
@@ -254,9 +288,19 @@ export function ClasesPorAulaPage() {
     return Number.isFinite(parsed) ? parsed : null;
   }
 
+  function unassignZoneUnderPoint(x: number, y: number): boolean {
+    const el = document.elementFromPoint(x, y);
+    return el instanceof Element ? el.closest('[data-unassign-zone]') !== null : false;
+  }
+
   function handlePointerMoveWindow(event: PointerEvent) {
     moveGhostTo(event.clientX, event.clientY);
-    const roomId = roomIdUnderPoint(event.clientX, event.clientY);
+
+    const isOverUnassign = unassignZoneUnderPoint(event.clientX, event.clientY);
+    hoverUnassignZoneRef.current = isOverUnassign;
+    setHoverUnassignZone((prev) => (prev === isOverUnassign ? prev : isOverUnassign));
+
+    const roomId = isOverUnassign ? null : roomIdUnderPoint(event.clientX, event.clientY);
     hoverRoomIdRef.current = roomId;
     setHoverRoomId((prev) => (prev === roomId ? prev : roomId));
   }
@@ -269,8 +313,18 @@ export function ClasesPorAulaPage() {
     dragInfoRef.current = null;
     setDraggingSectionId(null);
     setHoverRoomId(null);
+    setHoverUnassignZone(false);
 
     if (!info) return;
+
+    const droppedOnUnassignZone = unassignZoneUnderPoint(event.clientX, event.clientY) || hoverUnassignZoneRef.current;
+    hoverUnassignZoneRef.current = false;
+
+    if (droppedOnUnassignZone) {
+      hoverRoomIdRef.current = null;
+      void handleUnassign(info.sectionId);
+      return;
+    }
 
     // Preferimos el punto exacto de soltar; si por un movimiento rápido cae justo
     // en el borde/gap entre columnas, usamos el último aula que sí se resaltó.
@@ -294,6 +348,7 @@ export function ClasesPorAulaPage() {
 
     dragInfoRef.current = info;
     hoverRoomIdRef.current = null;
+    hoverUnassignZoneRef.current = false;
     setDraggingSectionId(info.sectionId);
     moveGhostTo(event.clientX, event.clientY);
 
@@ -344,7 +399,10 @@ export function ClasesPorAulaPage() {
           ) : null}
         </div>
 
-        <aside className="kanban-left">
+        <aside
+            className={`kanban-left ${isDragging && hoverUnassignZone ? 'active' : ''}`}
+            data-unassign-zone="true"
+        >
           <div className="section-head dark">
             <strong>Secciones sin Aula</strong>
             <span>{filteredSections.length} visibles · {unassignedSections.length} pendientes</span>
@@ -362,6 +420,11 @@ export function ClasesPorAulaPage() {
             ))}
           </div>
           <p className={`feedback ${message.startsWith('⚠️') ? 'error' : ''}`}>{saving ? 'Guardando…' : message}</p>
+          {isDragging && dragInfoRef.current?.sourceRoomId !== null && (
+              <p className={`feedback unassign-hint ${hoverUnassignZone ? 'active' : ''}`}>
+                ↩ Suelta aquí para quitarla de su aula
+              </p>
+          )}
           <div className="stack">
             {filteredSections.map((item) => (
                 <article
