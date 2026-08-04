@@ -32,15 +32,13 @@ function buildMessage(payload: ApiErrorPayload | null, fallback: string) {
 
 export async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
   const requestedMethod = (init?.method ?? 'GET').toUpperCase();
-  const needsOverride = requestedMethod === 'PATCH' || requestedMethod === 'PUT' || requestedMethod === 'DELETE';
 
   const response = await fetch(`${API_URL}${path}`, {
     ...init,
-    method: needsOverride ? 'POST' : requestedMethod,
+    method: requestedMethod,
     headers: {
       Accept: 'application/json',
       ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
-      ...(needsOverride ? { 'X-HTTP-Method-Override': requestedMethod } : {}),
       ...init?.headers,
     },
   });
