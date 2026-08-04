@@ -456,3 +456,20 @@ button,input{font:inherit}
 .tag.state.activo{
   background:#e4f8e8;color:#22c55e
 }
+.row-actions{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+}
+.row-actions .secondary-btn,
+.row-actions .delete-btn{
+  padding:10px 14px;
+}
+.delete-btn{
+  border:0;
+  border-radius:12px;
+  background:#fdecec;
+  color:#dc2626;
+  font-weight:700;
+  cursor:pointer;
+}
