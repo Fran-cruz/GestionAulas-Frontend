@@ -160,6 +160,13 @@ export function PeriodosAcademicosPage() {
     }
   };
 
+  const sortedPeriodos = [...periodos].sort((a, b) => {
+    const aTime = a.created_at ? new Date(a.created_at).getTime() : a.id;
+    const bTime = b.created_at ? new Date(b.created_at).getTime() : b.id;
+
+    return bTime - aTime;
+  });
+
   return (
     <section className="catalog-page">
       <div className="toolbar">
@@ -270,7 +277,7 @@ export function PeriodosAcademicosPage() {
                   <td colSpan={6}>No hay períodos registrados todavía.</td>
                 </tr>
               ) : (
-                periodos.map((periodo) => (
+                sortedPeriodos.map((periodo) => (
                   <tr key={periodo.id}>
                     <td>{periodo.nombre}</td>
                     <td>{formatFecha(periodo.fecha_inicio)}</td>
