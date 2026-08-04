@@ -168,9 +168,30 @@ export function PeriodosAcademicosPage() {
                   borderBottom: '1px solid #dbe4f0',
                   padding: '8px 0',
                   outline: 'none',
-                  color: '#1a1a1a',
+                color: '#1a1a1a',
                 }}
               />
+            </label>
+
+            <label className="period-field">
+              <span>Estado</span>
+              <select
+                value={form.estado}
+                onChange={handleChange('estado')}
+                style={{
+                  fontSize: 20,
+                  fontWeight: 500,
+                  border: 'none',
+                  borderBottom: '1px solid #dbe4f0',
+                  padding: '8px 0',
+                  outline: 'none',
+                  color: '#1a1a1a',
+                  background: 'transparent',
+                }}
+              >
+                <option value="ACTIVO">Activo</option>
+                <option value="CERRADO">Cerrado</option>
+              </select>
             </label>
 
             {formError ? <div className="feedback error">{formError}</div> : null}
