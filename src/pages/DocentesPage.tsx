@@ -1,77 +1,154 @@
-import { useEffect, useState } from 'react';
-import { DocenteModal, DocenteFormData } from '../components/DocenteModal';
+import { FormEvent, useEffect, useState } from 'react';
+import { ApiError } from '../lib/api';
+import {
+  Docente,
+  codigoDocente,
+  crearDocente,
+  eliminarDocente,
+  modificarDocente,
+  obtenerDocentes,
+} from '../lib/docentes';
 
-type Docente = DocenteFormData & { codigo: string };
+type EstadoDocente = 'ACTIVO' | 'LICENCIA' | 'INACTIVO';
 
-const STORAGE_KEY = 'gestion-aulas:teachers';
+const formVacio: Docente = {
+  nombre_completo: '',
+  correo_institucional: '',
+  telefono: '',
+  departamento: '',
+  especialidad: '',
+  estado: 'ACTIVO',
+};
 
-const initialTeachers: Docente[] = [
-  { codigo: 'DOC-001', nombre: 'Dr. Juan Ramírez', departamento: 'Ingeniería', especialidad: 'Cálculo', estado: 'Activo', cargaHoraria: 18 },
-  { codigo: 'DOC-002', nombre: 'Lic. María Torres', departamento: 'Ingeniería', especialidad: 'Programación', estado: 'Activo', cargaHoraria: 16 },
-  { codigo: 'DOC-003', nombre: 'Dr. Carlos López', departamento: 'Ciencias', especialidad: 'Física', estado: 'Licencia', cargaHoraria: 12 },
-  { codigo: 'DOC-004', nombre: 'Ing. Rosa Medina', departamento: 'Ciencias', especialidad: 'Química', estado: 'Activo', cargaHoraria: 20 },
-];
-
-function loadTeachers(): Docente[] {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? JSON.parse(stored) : initialTeachers;
-  } catch {
-    return initialTeachers;
-  }
-}
-
-function nextCodigo(teachers: Docente[]): string {
-  const numbers = teachers.map((t) => Number(t.codigo.replace('DOC-', '')) || 0);
-  const next = numbers.length ? Math.max(...numbers) + 1 : 1;
-  return `DOC-${String(next).padStart(3, '0')}`;
+function formatEstado(estado: string) {
+  const lower = estado.toLowerCase();
+  return lower.charAt(0).toUpperCase() + lower.slice(1);
 }
 
 export function DocentesPage() {
-  const [teachers, setTeachers] = useState<Docente[]>(loadTeachers);
-  const [modalMode, setModalMode] = useState<'create' | 'edit' | null>(null);
-  const [editingCodigo, setEditingCodigo] = useState<string | null>(null);
+  const [docentes, setDocentes] = useState<Docente[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+
+  const [modalAbierto, setModalAbierto] = useState(false);
+  const [editandoId, setEditandoId] = useState<number | null>(null);
+  const [form, setForm] = useState<Docente>(formVacio);
+  const [formError, setFormError] = useState('');
+  const [guardando, setGuardando] = useState(false);
+
+  async function cargarDocentes() {
+    setLoading(true);
+    setLoadError('');
+    try {
+      const datos = await obtenerDocentes();
+      setDocentes(datos);
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : 'No se pudieron cargar los docentes.');
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(teachers));
-  }, [teachers]);
+    cargarDocentes();
+  }, []);
 
-  function handleOpenCreate() {
-    setEditingCodigo(null);
-    setModalMode('create');
+  function abrirCrear() {
+    setEditandoId(null);
+    setForm(formVacio);
+    setFormError('');
+    setModalAbierto(true);
   }
 
-  function handleOpenEdit(codigo: string) {
-    setEditingCodigo(codigo);
-    setModalMode('edit');
+  function abrirEditar(docente: Docente) {
+    if (!docente.id) return;
+    setEditandoId(docente.id);
+    setForm({
+      nombre_completo: docente.nombre_completo,
+      correo_institucional: docente.correo_institucional,
+      telefono: docente.telefono ?? '',
+      departamento: docente.departamento,
+      especialidad: docente.especialidad,
+      estado: (docente.estado.toUpperCase() as EstadoDocente) ?? 'ACTIVO',
+    });
+    setFormError('');
+    setModalAbierto(true);
   }
 
-  function handleCloseModal() {
-    setModalMode(null);
-    setEditingCodigo(null);
+  function cerrarModal() {
+    if (guardando) return;
+    setModalAbierto(false);
   }
 
-  function handleSave(data: DocenteFormData) {
-    if (modalMode === 'edit' && editingCodigo) {
-      setTeachers((prev) =>
-          prev.map((t) => (t.codigo === editingCodigo ? { ...t, ...data } : t))
-      );
-    } else {
-      setTeachers((prev) => [...prev, { ...data, codigo: nextCodigo(prev) }]);
+  function actualizarCampo<K extends keyof Docente>(campo: K, valor: Docente[K]) {
+    setForm((prev: Docente) => ({ ...prev, [campo]: valor }));
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setFormError('');
+
+    if (!form.nombre_completo.trim()) {
+      setFormError('El nombre del docente es obligatorio.');
+      return;
     }
-    handleCloseModal();
+    if (!form.correo_institucional.trim()) {
+      setFormError('El correo institucional es obligatorio.');
+      return;
+    }
+    if (!form.departamento.trim()) {
+      setFormError('El departamento es obligatorio.');
+      return;
+    }
+
+    const payload: Docente = {
+      ...form,
+      nombre_completo: form.nombre_completo.trim(),
+      correo_institucional: form.correo_institucional.trim(),
+      telefono: form.telefono.trim(),
+      departamento: form.departamento.trim(),
+      especialidad: form.especialidad.trim(),
+    };
+
+    setGuardando(true);
+    try {
+      if (editandoId) {
+        await modificarDocente(editandoId, payload);
+      } else {
+        await crearDocente(payload);
+      }
+      setModalAbierto(false);
+      await cargarDocentes();
+    } catch (error) {
+      setFormError(error instanceof ApiError ? error.message : 'No se pudo guardar el docente.');
+    } finally {
+      setGuardando(false);
+    }
   }
 
-  const editingTeacher = teachers.find((t) => t.codigo === editingCodigo);
+  async function handleEliminar(docente: Docente) {
+    if (!docente.id) return;
+    const confirmado = window.confirm(`¿Eliminar a ${docente.nombre_completo}?`);
+    if (!confirmado) return;
+
+    try {
+      await eliminarDocente(docente.id);
+      await cargarDocentes();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'No se pudo eliminar el docente.');
+    }
+  }
 
   return (
       <section className="catalog-page">
         <div className="toolbar">
-          <div className="catalog-summary">{teachers.length} Docentes Registrados</div>
-          <button className="primary-btn" onClick={handleOpenCreate}>
+          <div className="catalog-summary">{docentes.length} Docentes Registrados</div>
+          <button className="primary-btn" onClick={abrirCrear}>
             + Nuevo Docente
           </button>
         </div>
+
+        {loadError ? <div className="feedback error">{loadError}</div> : null}
 
         <div className="table-card full">
           <table>
@@ -82,50 +159,136 @@ export function DocentesPage() {
               <th>Departamento</th>
               <th>Especialidad</th>
               <th>Estado</th>
-              <th>Carga Horaria</th>
+              <th>Correo</th>
+              <th>Teléfono</th>
               <th>Acciones</th>
             </tr>
             </thead>
             <tbody>
-            {teachers.map((row) => (
-                <tr key={row.codigo}>
-                  <td>{row.codigo}</td>
-                  <td>{row.nombre}</td>
-                  <td>{row.departamento}</td>
-                  <td>{row.especialidad}</td>
-                  <td>
-                    <span className={`tag state ${row.estado.toLowerCase()}`}>{row.estado}</span>
-                  </td>
-                  <td>{row.cargaHoraria}h</td>
-                  <td>
-                    <button className="edit-btn" onClick={() => handleOpenEdit(row.codigo)}>
-                      Editar
-                    </button>
-                  </td>
+            {loading ? (
+                <tr>
+                  <td colSpan={8}>Cargando docentes...</td>
                 </tr>
-            ))}
+            ) : docentes.length === 0 ? (
+                <tr>
+                  <td colSpan={8}>No hay docentes registrados todavía.</td>
+                </tr>
+            ) : (
+                docentes.map((docente) => (
+                    <tr key={docente.id}>
+                      <td>{docente.id ? codigoDocente(docente.id) : '—'}</td>
+                      <td>{docente.nombre_completo}</td>
+                      <td>{docente.departamento || '—'}</td>
+                      <td>{docente.especialidad || '—'}</td>
+                      <td>
+                    <span className={`tag state ${docente.estado.toLowerCase()}`}>
+                      {formatEstado(docente.estado)}
+                    </span>
+                      </td>
+                      <td>{docente.correo_institucional}</td>
+                      <td>{docente.telefono || '—'}</td>
+                      <td className="row-actions">
+                        <button className="edit-btn" onClick={() => abrirEditar(docente)}>
+                          Editar
+                        </button>
+                        <button className="delete-btn" onClick={() => handleEliminar(docente)}>
+                          Eliminar
+                        </button>
+                      </td>
+                    </tr>
+                ))
+            )}
             </tbody>
           </table>
         </div>
 
-        {modalMode === 'create' && (
-            <DocenteModal title="Nuevo Docente" onClose={handleCloseModal} onSave={handleSave} />
-        )}
+        {modalAbierto ? (
+            <div className="modal-overlay" onClick={cerrarModal}>
+              <div className="modal-box" onClick={(event) => event.stopPropagation()}>
+                <div className="modal-header">
+                  <h3>{editandoId ? 'Editar Docente' : 'Nuevo Docente'}</h3>
+                  <button className="modal-close" onClick={cerrarModal} disabled={guardando} type="button">
+                    ×
+                  </button>
+                </div>
 
-        {modalMode === 'edit' && editingTeacher && (
-            <DocenteModal
-                title="Editar Docente"
-                initialData={{
-                  nombre: editingTeacher.nombre,
-                  departamento: editingTeacher.departamento,
-                  especialidad: editingTeacher.especialidad,
-                  estado: editingTeacher.estado,
-                  cargaHoraria: editingTeacher.cargaHoraria,
-                }}
-                onClose={handleCloseModal}
-                onSave={handleSave}
-            />
-        )}
+                <form className="modal-form" onSubmit={handleSubmit}>
+                  <label>
+                    Nombre completo
+                    <input
+                        type="text"
+                        placeholder="Ej. Dr. Juan Ramírez"
+                        value={form.nombre_completo}
+                        onChange={(event) => actualizarCampo('nombre_completo', event.target.value)}
+                    />
+                  </label>
+
+                  <label>
+                    Correo institucional
+                    <input
+                        type="email"
+                        placeholder="Ej. juan.ramirez@unicah.edu"
+                        value={form.correo_institucional}
+                        onChange={(event) => actualizarCampo('correo_institucional', event.target.value)}
+                    />
+                  </label>
+
+                  <label>
+                    Teléfono
+                    <input
+                        type="text"
+                        placeholder="Ej. 9988-7766"
+                        value={form.telefono}
+                        onChange={(event) => actualizarCampo('telefono', event.target.value)}
+                    />
+                  </label>
+
+                  <label>
+                    Departamento
+                    <input
+                        type="text"
+                        placeholder="Ej. Ingeniería"
+                        value={form.departamento}
+                        onChange={(event) => actualizarCampo('departamento', event.target.value)}
+                    />
+                  </label>
+
+                  <label>
+                    Especialidad
+                    <input
+                        type="text"
+                        placeholder="Ej. Programación"
+                        value={form.especialidad}
+                        onChange={(event) => actualizarCampo('especialidad', event.target.value)}
+                    />
+                  </label>
+
+                  <label>
+                    Estado
+                    <select
+                        value={form.estado}
+                        onChange={(event) => actualizarCampo('estado', event.target.value)}
+                    >
+                      <option value="ACTIVO">Activo</option>
+                      <option value="LICENCIA">Licencia</option>
+                      <option value="INACTIVO">Inactivo</option>
+                    </select>
+                  </label>
+
+                  {formError ? <p className="modal-error">{formError}</p> : null}
+
+                  <div className="modal-actions">
+                    <button type="button" className="secondary-btn" onClick={cerrarModal} disabled={guardando}>
+                      Cancelar
+                    </button>
+                    <button type="submit" className="primary-btn" disabled={guardando}>
+                      {guardando ? 'Guardando...' : editandoId ? 'Guardar Cambios' : 'Crear Docente'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+        ) : null}
       </section>
   );
 }
