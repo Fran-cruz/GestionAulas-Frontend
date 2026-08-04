@@ -447,3 +447,12 @@ button,input{font:inherit}
 .modal-error{color:#ef4444;font-size:.85rem;margin:0}
 .modal-actions{display:flex;justify-content:flex-end;gap:12px;margin-top:6px}
 .tag.state.inactivo{background:#f1f4f8;color:#6a7689}
+.feedback.error{
+  background:#fff1f1;border-left-color:#dc2626;color:#991b1b
+}
+.tag.state.cerrado{
+  background:#fff0cf;color:#f59e0b
+}
+.tag.state.activo{
+  background:#e4f8e8;color:#22c55e
+}
