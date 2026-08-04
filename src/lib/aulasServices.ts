@@ -1,7 +1,7 @@
 const API_URL = "https://darkgray-bee-113622.hostingersite.com/api/aulas";
 
 export interface Aula {
-  id?: number;
+  id: number;
   nombre: string;
   edificio: string;
   piso: number;
