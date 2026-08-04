@@ -162,8 +162,8 @@ export function SeccionesPage() {
           <table>
             <thead>
             <tr>
-              <th>Código</th>
               <th>Materia</th>
+              <th>Código</th>
               <th>Docente</th>
               <th>Tipo Sesión</th>
               <th>Área Académica</th>
@@ -184,8 +184,8 @@ export function SeccionesPage() {
             ) : (
                 secciones.map((seccion) => (
                     <tr key={seccion.id}>
-                      <td>{seccionCodigo(seccion.id)}</td>
                       <td>{seccion.materia}</td>
+                      <td>{seccionCodigo(seccion.id)}</td>
                       <td>{seccion.docente_nombre || '—'}</td>
                       <td>{formatTipoSesion(seccion.tipo_sesion)}</td>
                       <td>{seccion.area_academica}</td>
