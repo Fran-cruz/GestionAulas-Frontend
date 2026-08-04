@@ -8,7 +8,7 @@ import {
   formatFecha,
   deletePeriodo,
   listPeriodos,
-  updatePeriodoEstado,
+  activatePeriodo,
 } from '../lib/periodos';
 
 const emptyForm: PeriodoFormValues = {
@@ -111,31 +111,8 @@ export function PeriodosAcademicosPage() {
     setActionError('');
     setUpdatingId(periodo.id);
 
-    const activePeriodos = periodos.filter(
-      (item) => item.id !== periodo.id && item.estado.toUpperCase() === 'ACTIVO',
-    );
-
     try {
-      await Promise.all([
-        ...activePeriodos.map((item) =>
-          updatePeriodoEstado(item.id, 'CERRADO'),
-        ),
-        updatePeriodoEstado(periodo.id, 'ACTIVO'),
-      ]);
-
-      setPeriodos((current) =>
-        current.map((item) => {
-          if (item.id === periodo.id) {
-            return { ...item, estado: 'ACTIVO' };
-          }
-
-          if (activePeriodos.some((active) => active.id === item.id)) {
-            return { ...item, estado: 'CERRADO' };
-          }
-
-          return item;
-        }),
-      );
+      await activatePeriodo(periodo.id);
 
       await loadPeriodos();
     } catch (error) {
