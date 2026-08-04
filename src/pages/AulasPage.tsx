@@ -34,7 +34,7 @@ export function AulasPage() {
   async function getAulas() {
     try {
       const datos = await obtenerAulas();
-      setAulas(datos);
+      setAulas(datos.filter((aula): aula is Aula => typeof aula.id === "number"));
     } catch (error) {
       console.error(error);
     }
