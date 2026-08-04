@@ -8,7 +8,7 @@ import {
   formatFecha,
   deletePeriodo,
   listPeriodos,
-  updatePeriodo,
+  updatePeriodoEstado,
 } from '../lib/periodos';
 
 const emptyForm: PeriodoFormValues = {
@@ -118,24 +118,19 @@ export function PeriodosAcademicosPage() {
     try {
       await Promise.all([
         ...activePeriodos.map((item) =>
-          updatePeriodo(item.id, {
-            nombre: item.nombre,
-            fecha_inicio: item.fecha_inicio.split('T')[0],
-            fecha_fin: item.fecha_fin.split('T')[0],
-            estado: 'CERRADO',
-          }),
+          updatePeriodoEstado(item.id, 'CERRADO'),
         ),
-        updatePeriodo(periodo.id, {
-          nombre: periodo.nombre,
-          fecha_inicio: periodo.fecha_inicio.split('T')[0],
-          fecha_fin: periodo.fecha_fin.split('T')[0],
-          estado: 'ACTIVO',
-        }),
+        updatePeriodoEstado(periodo.id, 'ACTIVO'),
       ]);
 
       await loadPeriodos();
     } catch (error) {
-      setActionError(error instanceof Error ? error.message : 'No se pudo activar el período.');
+      if (error instanceof ApiError) {
+        setActionError(error.message);
+        return;
+      }
+
+      setActionError('No se pudo activar el período.');
     } finally {
       setUpdatingId(null);
     }
@@ -154,7 +149,12 @@ export function PeriodosAcademicosPage() {
       await deletePeriodo(periodo.id);
       await loadPeriodos();
     } catch (error) {
-      setActionError(error instanceof Error ? error.message : 'No se pudo borrar el período.');
+      if (error instanceof ApiError) {
+        setActionError(error.message);
+        return;
+      }
+
+      setActionError('No se pudo borrar el período.');
     } finally {
       setDeletingId(null);
     }

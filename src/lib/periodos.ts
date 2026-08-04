@@ -53,6 +53,13 @@ export function updatePeriodo(id: number, values: PeriodoFormValues) {
   });
 }
 
+export function updatePeriodoEstado(id: number, estado: EstadoPeriodo) {
+  return apiRequest<{ message: string; periodo: PeriodoAcademico }>(`/periodos-academicos/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify({ estado }),
+  });
+}
+
 export function deletePeriodo(id: number) {
   return apiRequest<{ message: string }>(`/periodos-academicos/${id}`, {
     method: 'DELETE',
