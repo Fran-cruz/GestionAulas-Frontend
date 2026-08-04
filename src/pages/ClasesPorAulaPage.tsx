@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ApiError } from '../lib/api';
 import { createAssignment, fetchScheduleSnapshot, updateAssignment } from '../features/schedule/api';
 import {
+  normalizeAssignment,
   scheduleSectionFilters,
   type ScheduleAreaKey,
   type ScheduleAssignment,
@@ -206,14 +207,32 @@ export function ClasesPorAulaPage() {
       if (saved.id_aula !== room.id) {
         // eslint-disable-next-line no-console
         console.warn(
-            `[ClasesPorAula] el backend respondió id_aula=${saved.id_aula} pero se soltó sobre el aula ${room.id} (${room.code}). Esto es un problema del Controller, no del arrastre.`,
+            `[ClasesPorAula] el backend respondió id_aula=${saved.id_aula} pero se soltó sobre el aula ${room.id} (${room.code}). Esto es un problema del backend, no del arrastre. Revisa storage/logs/laravel.log.`,
         );
       }
 
-      await loadSnapshot({ silent: true, keepMessage: true });
+      // Actualización optimista: aplicamos lo que el backend acaba de
+      // confirmar directamente al estado local, para que la tarjeta se
+      // vea en su aula nueva de inmediato, sin depender de que el
+      // siguiente GET (que puede toparse con caché en Hostinger) ya
+      // refleje el cambio.
+      const normalized = normalizeAssignment(saved);
+      if (normalized) {
+        setSnapshot((prev) => {
+          if (!prev) return prev;
+          const withoutOld = prev.assignments.filter((a) => a.id !== normalized.id);
+          return { ...prev, assignments: [...withoutOld, normalized] };
+        });
+      }
+
       setMessage(
           existing ? `${section.name} se movió a ${room.code}.` : `${section.name} asignada a ${room.code}.`,
       );
+
+      // Recarga silenciosa en segundo plano para reconciliar con el
+      // backend (por si algo más cambió). No bloquea la UI: la tarjeta
+      // ya se ve en su aula nueva desde el paso anterior.
+      void loadSnapshot({ silent: true, keepMessage: true });
     } catch (err) {
       setMessage(`⚠️ ${getErrorMessage(err)}`);
     } finally {

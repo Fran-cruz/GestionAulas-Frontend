@@ -242,6 +242,26 @@ function normalizeScheduleBounds(startMinutes: number, endMinutes: number) {
   };
 }
 
+// Convierte UNA asignación tal cual la manda el backend (ApiAsignacion) al
+// formato que usa la UI (ScheduleAssignment). Se usa tanto dentro de
+// normalizeScheduleSnapshot (lista completa) como en ClasesPorAulaPage
+// para actualizar el estado local al instante justo después de guardar,
+// sin tener que esperar (ni depender de) el próximo GET de recarga.
+export function normalizeAssignment(assignment: ApiAsignacion): ScheduleAssignment | null {
+  if (assignment.id_seccion === null) return null;
+
+  return {
+    id: assignment.id,
+    sectionId: assignment.id_seccion,
+    periodId: assignment.id_periodo,
+    roomId: assignment.id_aula,
+    teacherId: assignment.id_docente,
+    students: assignment.estudiantes_matriculados,
+    overCapacityConfirmed: assignment.sobrecargo_confirmado,
+    status: assignment.estado,
+  };
+}
+
 export function normalizeScheduleSnapshot(raw: {
   aulas: ApiAula[];
   docentes: ApiDocente[];
@@ -295,17 +315,8 @@ export function normalizeScheduleSnapshot(raw: {
   });
 
   const assignments = raw.asignaciones
-      .filter((assignment): assignment is ApiAsignacion & { id_seccion: number } => assignment.id_seccion !== null)
-      .map((assignment) => ({
-        id: assignment.id,
-        sectionId: assignment.id_seccion,
-        periodId: assignment.id_periodo,
-        roomId: assignment.id_aula,
-        teacherId: assignment.id_docente,
-        students: assignment.estudiantes_matriculados,
-        overCapacityConfirmed: assignment.sobrecargo_confirmado,
-        status: assignment.estado,
-      }));
+      .map((assignment) => normalizeAssignment(assignment))
+      .filter((assignment): assignment is ScheduleAssignment => assignment !== null);
 
   const sessions = raw.sesiones.map((session) => {
     const normalizedApiDay = session.dia.toUpperCase();

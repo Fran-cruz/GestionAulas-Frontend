@@ -63,8 +63,14 @@ export async function createAssignment(payload: AssignmentMutationPayload) {
 }
 
 export async function updateAssignment(id: number, payload: Partial<AssignmentMutationPayload>) {
+  // Usamos POST normal (sin header especial) en vez de PATCH, porque el
+  // header X-HTTP-Method-Override obliga al navegador a mandar un preflight
+  // CORS que Hostinger bloquea (no hay config/cors.php declarando ese header
+  // como permitido). El backend ya tiene una ruta POST /asignaciones/{id}
+  // que hace exactamente lo mismo que el PATCH (routes/api.php), así que
+  // esto funciona igual, sin depender de CORS extra.
   const response = await apiRequest<{ message: string; asignacion: ApiAsignacion }>(`/asignaciones/${id}`, {
-    method: 'PATCH',
+    method: 'POST',
     body: JSON.stringify(payload),
   });
 
