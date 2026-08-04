@@ -1,13 +1,13 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { ApiError } from '../lib/api';
-import { createAssignment, fetchScheduleSnapshot, updateAssignment } from '../features/schedule/api';
+import {useEffect, useMemo, useRef, useState} from 'react';
+import {ApiError} from '../lib/api';
+import {createAssignment, fetchScheduleSnapshot, updateAssignment} from '../features/schedule/api';
 import {
   normalizeAssignment,
-  scheduleSectionFilters,
   type ScheduleAreaKey,
   type ScheduleAssignment,
   type ScheduleRoom,
   type ScheduleSection,
+  scheduleSectionFilters,
   type ScheduleSnapshot,
 } from '../features/schedule/model';
 
@@ -213,11 +213,6 @@ export function ClasesPorAulaPage() {
         );
       }
 
-      // Actualización optimista: aplicamos lo que el backend acaba de
-      // confirmar directamente al estado local, para que la tarjeta se
-      // vea en su aula nueva de inmediato, sin depender de que el
-      // siguiente GET (que puede toparse con caché en Hostinger) ya
-      // refleje el cambio.
       const normalized = normalizeAssignment(saved);
       if (normalized) {
         setSnapshot((prev) => {
@@ -231,9 +226,6 @@ export function ClasesPorAulaPage() {
           existing ? `${section.name} se movió a ${room.code}.` : `${section.name} asignada a ${room.code}.`,
       );
 
-      // Recarga silenciosa en segundo plano para reconciliar con el
-      // backend (por si algo más cambió). No bloquea la UI: la tarjeta
-      // ya se ve en su aula nueva desde el paso anterior.
       void loadSnapshot({ silent: true, keepMessage: true });
     } catch (err) {
       setMessage(`⚠️ ${getErrorMessage(err)}`);
@@ -444,10 +436,10 @@ export function ClasesPorAulaPage() {
                   <div className="subject-tag">{item.areaLabel}</div>
                   <div className="subject-code">{item.code}</div>
                   <div className="subject-name">{item.name}</div>
-                  <div className="subject-teacher">👤 {teacherLabel(item)}</div>
+                  <div className="subject-teacher"> {teacherLabel(item)}</div>
                   <div className="subject-meta">
-                    <span>👥 {assignmentBySectionId.get(item.id)?.students ?? 0} alumnos</span>
-                    <span>⏱ {item.weeklyHours}h/sem</span>
+                    <span>  {assignmentBySectionId.get(item.id)?.students ?? 0} alumnos</span>
+                    <span> {item.weeklyHours}h/sem</span>
                   </div>
                 </article>
             ))}
@@ -521,8 +513,8 @@ export function ClasesPorAulaPage() {
                             <div className="subject-tag">{section.areaLabel}</div>
                             <strong>{section.code}</strong>
                             <span>{section.name}</span>
-                            <small>👤 {teacherLabel(section, a)}</small>
-                            <b>👥 {a.students} alumnos</b>
+                            <small> {teacherLabel(section, a)}</small>
+                            <b> {a.students} alumnos</b>
                           </article>
                       );
                     })}
