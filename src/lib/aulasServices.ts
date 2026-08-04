@@ -1,15 +1,18 @@
-const API_URL = "https://darkgray-bee-113622.hostingersite.com/api/aulas";
+const API_URL =
+  "https://darkgray-bee-113622.hostingersite.com/api/aulas";
 
 export interface Aula {
-  id: number;
+  id?: number;
   nombre: string;
   edificio: string;
-  piso: number;
+  piso: string;
   tipo: string;
   capacidad_maxima: number;
   descripcion: string;
   estado: string;
 }
+
+export type AulaData = Omit<Aula, "id">;
 
 export const obtenerAulas = async (): Promise<Aula[]> => {
   const respuesta = await fetch(API_URL);
@@ -21,7 +24,9 @@ export const obtenerAulas = async (): Promise<Aula[]> => {
   return await respuesta.json();
 };
 
-export const crearAula = async (datos: Aula): Promise<Aula> => {
+export const crearAula = async (
+  datos: AulaData
+): Promise<Aula> => {
   const respuesta = await fetch(API_URL, {
     method: "POST",
     headers: {
@@ -32,8 +37,7 @@ export const crearAula = async (datos: Aula): Promise<Aula> => {
   });
 
   if (!respuesta.ok) {
-    const error = await respuesta.text();
-    throw new Error(error);
+    throw new Error(await respuesta.text());
   }
 
   return await respuesta.json();
@@ -41,7 +45,7 @@ export const crearAula = async (datos: Aula): Promise<Aula> => {
 
 export const modificarAula = async (
   id: number,
-  datos: Aula
+  datos: AulaData
 ): Promise<Aula> => {
   const respuesta = await fetch(`${API_URL}/${id}`, {
     method: "PUT",
@@ -53,24 +57,23 @@ export const modificarAula = async (
   });
 
   if (!respuesta.ok) {
-    const error = await respuesta.text();
-    throw new Error(error);
+    throw new Error(await respuesta.text());
   }
 
   return await respuesta.json();
 };
 
-export const eliminarAula = async (id: number): Promise<void> => {
+export const eliminarAula = async (
+  id: number
+): Promise<void> => {
   const respuesta = await fetch(`${API_URL}/${id}`, {
     method: "DELETE",
     headers: {
       Accept: "application/json",
-      "Content-Type": "application/json",
     },
   });
 
   if (!respuesta.ok) {
-    const error = await respuesta.text();
-    throw new Error(error);
+    throw new Error(await respuesta.text());
   }
 };

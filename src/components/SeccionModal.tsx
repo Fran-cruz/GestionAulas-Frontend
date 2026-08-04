@@ -9,11 +9,17 @@ type SeccionModalProps = {
     onSave: (seccion: Seccion) => void;
 };
 
+// 👇 Nueva función: normaliza "matutino" o "MATUTINO" a "Matutino"
+function normalizarTipoSesion(valor: string): string {
+    if (!valor) return 'Matutino';
+    return valor.charAt(0).toUpperCase() + valor.slice(1).toLowerCase();
+}
+
 const emptyForm: Seccion = {
     materia: '',
     codigo_materia: '',
     id_docente: null,
-    tipo_sesion: 'MATUTINO',   // ← antes: tipo_sesion
+    tipo_sesion: 'Matutino',
     area_academica: '',
     duracion_sesion_horas: 1,
     horas_semanales_totales: 1,
@@ -22,9 +28,15 @@ const emptyForm: Seccion = {
 };
 
 export function SeccionModal({ title, initialData, onClose, onSave }: SeccionModalProps) {
-    const [form, setForm] = useState<Seccion>(initialData ?? emptyForm);
+    const [form, setForm] = useState<Seccion>(
+        initialData
+            ? { ...initialData, tipo_sesion: normalizarTipoSesion(initialData.tipo_sesion) }
+            : emptyForm
+    );
     const [docentes, setDocentes] = useState<DocenteResumen[]>([]);
     const [error, setError] = useState('');
+
+    // ... el resto del archivo se queda exactamente igual ...
 
     useEffect(() => {
         obtenerDocentesResumen()
@@ -126,8 +138,8 @@ export function SeccionModal({ title, initialData, onClose, onSave }: SeccionMod
                             value={form.tipo_sesion}
                             onChange={(event) => update('tipo_sesion', event.target.value)}
                         >
-                            <option value="MATUTINO">MATUTINO</option>
-                            <option value="VESPERTINO">VESPERTINO</option>
+                            <option value="Matutino">Matutino</option>
+                            <option value="Vespertino">Vespertino</option>
                         </select>
                     </label>
                     <label>

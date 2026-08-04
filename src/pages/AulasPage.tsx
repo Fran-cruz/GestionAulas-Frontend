@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import type { FormEvent } from "react";
+
 import {
   obtenerAulas,
   crearAula,
@@ -6,15 +8,14 @@ import {
   eliminarAula,
 } from "../lib/aulasServices";
 
+import type { Aula, AulaData } from "../lib/aulasServices";
+
 import {
   FormularioAula,
   AulaForm,
 } from "../components/FormularioAula";
 
-import {
-  TablaAulas,
-  Aula,
-} from "../components/TablaAulas";
+import { TablaAulas } from "../components/TablaAulas";
 
 export function AulasPage() {
   const [aulas, setAulas] = useState<Aula[]>([]);
@@ -34,7 +35,12 @@ export function AulasPage() {
   async function getAulas() {
     try {
       const datos = await obtenerAulas();
-      setAulas(datos.filter((aula): aula is Aula => typeof aula.id === "number"));
+
+      setAulas(
+        datos.filter(
+          (aula): aula is Aula => typeof aula.id === "number"
+        )
+      );
     } catch (error) {
       console.error(error);
     }
@@ -45,16 +51,19 @@ export function AulasPage() {
   }, []);
 
   async function guardarAula(
-    e: React.FormEvent<HTMLFormElement>
+    e: FormEvent<HTMLFormElement>
   ) {
     e.preventDefault();
 
-    const datos = {
-      ...formulario,
-      piso: Number(formulario.piso),
+        const datos = {
+      nombre: formulario.nombre,
+      edificio: formulario.edificio,
+      piso: formulario.piso.toString(),
+      tipo: formulario.tipo,
       capacidad_maxima: Number(formulario.capacidad_maxima),
+      descripcion: formulario.descripcion,
+      estado: formulario.estado.toLowerCase(),
     };
-
     try {
       if (aulaID !== null) {
         await modificarAula(aulaID, datos);
@@ -70,16 +79,18 @@ export function AulasPage() {
   }
 
   function editarAula(aula: Aula) {
+    if (aula.id === undefined) return;
+
     setAulaID(aula.id);
 
     setFormulario({
-      nombre: aula.nombre,
-      edificio: aula.edificio,
-      piso: aula.piso,
-      tipo: aula.tipo,
-      capacidad_maxima: aula.capacidad_maxima,
-      descripcion: aula.descripcion,
-      estado: aula.estado,
+      nombre: aula.nombre ?? "",
+      edificio: aula.edificio ?? "",
+      piso: aula.piso ?? "",
+      tipo: aula.tipo ?? "",
+      capacidad_maxima: aula.capacidad_maxima ?? "",
+      descripcion: aula.descripcion ?? "",
+      estado: aula.estado ?? "",
     });
   }
 
@@ -112,39 +123,44 @@ export function AulasPage() {
 
   return (
     <section className="catalog-page">
-
       <div className="toolbar">
-        <div className="catalog-summary">
+        <h2>Aulas</h2>
+
+        <span>Administración de aulas</span>
+
+        <div className="period-chip">
           {aulas.length} Aulas Registradas
         </div>
       </div>
 
-      <FormularioAula
-        formulario={formulario}
-        setFormulario={setFormulario}
-        guardarAula={guardarAula}
-        limpiarFormulario={limpiarFormulario}
-        aulaID={aulaID}
-      />
+      <div className="aulas-layout">
+        <FormularioAula
+          formulario={formulario}
+          setFormulario={setFormulario}
+          guardarAula={guardarAula}
+          limpiarFormulario={limpiarFormulario}
+          aulaID={aulaID}
+        />
 
-      <br />
+        <div>
+          <input
+            className="search-input"
+            type="text"
+            placeholder="Buscar aula..."
+            value={buscar}
+            onChange={(e) => setBuscar(e.target.value)}
+          />
 
-      <input
-        type="text"
-        placeholder="Buscar aula..."
-        value={buscar}
-        onChange={(e) => setBuscar(e.target.value)}
-      />
+          <br />
+          <br />
 
-      <br />
-      <br />
-
-      <TablaAulas
-        aulas={aulasFiltradas}
-        editarAula={editarAula}
-        borrarAula={borrarAula}
-      />
-
+          <TablaAulas
+            aulas={aulasFiltradas}
+            editarAula={editarAula}
+            borrarAula={borrarAula}
+          />
+        </div>
+      </div>
     </section>
   );
 }

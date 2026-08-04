@@ -493,6 +493,69 @@ button,input{font:inherit}
 .drag-ghost.orange::before{background:#f59e0b}
 .drag-ghost strong{display:block;font-size:1rem;color:#2d3748}
 .drag-ghost span{display:block;color:#65768b;font-size:.88rem;margin-top:2px}
+/* ================= AULAS ================= */
+
+.aulas-layout{
+    display:grid;
+    grid-template-columns:380px 1fr;
+    gap:28px;
+    padding:24px;
+    align-items:start;
+}
+
+.aula-form-card{
+    padding:24px;
+}
+
+.search-input{
+    width:320px;
+    height:48px;
+    padding:0 16px;
+    border:1px solid #d9e2ef;
+    border-radius:12px;
+    outline:none;
+    font-size:15px;
+    transition:.25s;
+}
+
+.search-input:focus{
+    border-color:#2f6bf3;
+    box-shadow:0 0 0 3px rgba(47,107,243,.15);
+}
+
+.table-card h3{
+    margin:0;
+}
+
+.table-card table{
+    margin-top:20px;
+}
+
+.table-card tbody tr:hover{
+    background:#f6f9ff;
+}
+
+.modal-form{
+    display:grid;
+    gap:18px;
+}
+
+.modal-form input,
+.modal-form select{
+    height:48px;
+}
+
+.row-actions{
+    margin-top:10px;
+}
+
+.primary-btn{
+    min-width:120px;
+}
+
+.secondary-btn{
+    min-width:120px;
+}
 
 /* Revisa a mano si tu .room-card / .subject-card en trabajos-grupales ya tiene
    cursor:grab y user-select:none. Si no lo tiene, agrégaselo (necesario para
