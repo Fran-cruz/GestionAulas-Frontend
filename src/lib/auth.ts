@@ -23,19 +23,23 @@ export async function login(email: string, password: string) {
     throw new Error(data?.message ?? data?.email ?? 'No se pudo iniciar sesión.');
   }
 
-  return data as { message: string; user: AuthUser };
+  return data as { message: string; user: AuthUser; token: string };
 }
 
 export async function logout() {
+  const token = getStoredToken();
+
   await fetch(`${API_URL}/auth/logout`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Accept: 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
   }).catch(() => undefined);
 
   localStorage.removeItem('auth_user');
+  localStorage.removeItem('auth_token');
 }
 
 export async function forgotPassword(email: string) {
@@ -68,4 +72,8 @@ export function getStoredAuthUser(): AuthUser | null {
   } catch {
     return null;
   }
+}
+
+export function getStoredToken(): string | null {
+  return localStorage.getItem('auth_token');
 }
