@@ -63,8 +63,9 @@ export async function createAssignment(payload: AssignmentMutationPayload) {
 }
 
 export async function updateAssignment(id: number, payload: Partial<AssignmentMutationPayload>) {
+
   const response = await apiRequest<{ message: string; asignacion: ApiAsignacion }>(`/asignaciones/${id}`, {
-    method: 'PATCH',
+    method: 'POST',
     body: JSON.stringify(payload),
   });
 
