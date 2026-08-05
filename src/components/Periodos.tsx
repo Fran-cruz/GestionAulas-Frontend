@@ -165,7 +165,25 @@ export function Periodos() {
           <form onSubmit={handleSubmit} style={{ display: 'grid', gap: 28 }}>
             <label className="period-field">
               <span>Nombre del Período</span>
-              <input type="text" value={form.nombre} onChange={handleChange('nombre')} required maxLength={100} />
+              <input
+                type="text"
+                value={form.nombre}
+                onChange={handleChange('nombre')}
+                placeholder="Ej: Agosto - Diciembre 2026"
+                required
+                maxLength={100}
+                style={{
+                  fontSize: 20,
+                  fontWeight: 500,
+                  border: 'none',
+                  borderBottom: '1px solid #dbe4f0',
+                  padding: '8px 0',
+                  outline: 'none',
+                  color: '#1a1a1a',
+                  width: 'fit-content',
+                  minWidth: 220,
+                }}
+              />
             </label>
 
             <label className="period-field">
@@ -176,6 +194,16 @@ export function Periodos() {
                 value={form.fecha_inicio}
                 onChange={handleChange('fecha_inicio')}
                 required
+                style={{
+                  fontSize: 20,
+                  fontWeight: 500,
+                  border: 'none',
+                  borderBottom: '1px solid #dbe4f0',
+                  padding: '8px 0',
+                  outline: 'none',
+                  color: '#1a1a1a',
+                  width: 'fit-content',
+                }}
               />
             </label>
 
@@ -187,6 +215,16 @@ export function Periodos() {
                 value={form.fecha_fin}
                 onChange={handleChange('fecha_fin')}
                 required
+                style={{
+                  fontSize: 20,
+                  fontWeight: 500,
+                  border: 'none',
+                  borderBottom: '1px solid #dbe4f0',
+                  padding: '8px 0',
+                  outline: 'none',
+                  color: '#1a1a1a',
+                  width: 'fit-content',
+                }}
               />
             </label>
 
@@ -248,7 +286,7 @@ export function Periodos() {
                           type="button"
                           className="delete-btn"
                           onClick={() => handleDeletePeriodo(periodo)}
-                          disabled={deletingId === periodo.id || periodo.estado.toUpperCase() === 'ACTIVO'}
+                          disabled={deletingId === periodo.id}
                         >
                           {deletingId === periodo.id ? 'Borrando...' : 'Borrar'}
                         </button>
