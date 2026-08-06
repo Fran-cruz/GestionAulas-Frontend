@@ -1,28 +1,22 @@
-import { ChangeEvent, FormEvent, useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ApiError } from '../lib/api';
 import {
   PeriodoAcademico,
   PeriodoFormValues,
   createPeriodo,
+  deletePeriodo,
   formatEstado,
   formatFecha,
-  deletePeriodo,
   listPeriodos,
-  activatePeriodo,
+  updatePeriodo,
 } from '../lib/periodos';
+import { PeriodoAcademicoModal } from '../components/PeriodoAcademicoModal';
 
-const emptyForm: PeriodoFormValues = {
-  nombre: '',
-  fecha_inicio: '',
-  fecha_fin: '',
-  estado: 'CERRADO',
-};
+const PAGE_SIZE = 8;
 
 function getStoredAuthUserId() {
   const raw = localStorage.getItem('auth_user');
-  if (!raw) {
-    return null;
-  }
+  if (!raw) return null;
 
   try {
     const parsed = JSON.parse(raw) as { id?: number };
@@ -37,12 +31,12 @@ export function PeriodosAcademicosPage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
-  const [form, setForm] = useState<PeriodoFormValues>(emptyForm);
-  const [formError, setFormError] = useState('');
+  const [modalMode, setModalMode] = useState<'create' | 'edit' | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [actionError, setActionError] = useState('');
-  const [updatingId, setUpdatingId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const loadPeriodos = async () => {
     setLoading(true);
@@ -62,102 +56,82 @@ export function PeriodosAcademicosPage() {
     void loadPeriodos();
   }, []);
 
-  const handleChange = (field: keyof PeriodoFormValues) => (
-    event: ChangeEvent<HTMLInputElement | HTMLSelectElement>,
-  ) => {
-    setForm((prev) => ({ ...prev, [field]: event.target.value }));
-  };
+  const sortedPeriodos = useMemo(() => {
+    return [...periodos].sort((a, b) => {
+      const aTime = a.created_at ? new Date(a.created_at).getTime() : a.id;
+      const bTime = b.created_at ? new Date(b.created_at).getTime() : b.id;
+      return bTime - aTime;
+    });
+  }, [periodos]);
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setFormError('');
+  const totalPages = Math.max(1, Math.ceil(sortedPeriodos.length / PAGE_SIZE));
+  const safePage = Math.min(currentPage, totalPages);
+  const startIndex = (safePage - 1) * PAGE_SIZE;
+  const visiblePeriodos = sortedPeriodos.slice(startIndex, startIndex + PAGE_SIZE);
+
+  useEffect(() => {
+    setCurrentPage((page) => Math.min(page, totalPages));
+  }, [totalPages]);
+
+  function handleOpenCreate() {
+    setEditingId(null);
+    setModalMode('create');
     setActionError('');
     setSuccessMessage('');
+  }
 
+  function handleOpenEdit(id: number) {
+    setEditingId(id);
+    setModalMode('edit');
+    setActionError('');
+    setSuccessMessage('');
+  }
+
+  function handleCloseModal() {
+    setModalMode(null);
+    setEditingId(null);
+  }
+
+  async function handleSave(values: PeriodoFormValues) {
     const authUserId = getStoredAuthUserId();
-    if (!authUserId) {
-      setFormError('No se pudo identificar al usuario autenticado. Vuelve a iniciar sesión.');
-      return;
-    }
-
-    const fechaInicio = new Date(form.fecha_inicio);
-    const fechaFin = new Date(form.fecha_fin);
-
-    if (fechaFin <= fechaInicio) {
-      setFormError('La fecha final debe ser posterior a la fecha de inicio.');
+    if (!authUserId && modalMode === 'create') {
+      setActionError('No se pudo identificar al usuario autenticado. Vuelve a iniciar sesión.');
       return;
     }
 
     setSaving(true);
-
-    const payload: PeriodoFormValues = {
-      ...form,
-      nombre: form.nombre.trim(),
-      estado: 'CERRADO',
-    };
-
-    try {
-      await createPeriodo(payload, authUserId);
-      setForm(emptyForm);
-      setSuccessMessage('Período académico creado correctamente.');
-      await loadPeriodos();
-    } catch (error) {
-      if (error instanceof ApiError) {
-        setFormError(error.message);
-        return;
-      }
-
-      setFormError('No se pudo guardar el período.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleSelectPeriodo = async (periodo: PeriodoAcademico) => {
     setActionError('');
     setSuccessMessage('');
 
-    const confirmed = window.confirm(
-      `¿Deseas seleccionar "${periodo.nombre}" como el período académico activo?`,
-    );
-    if (!confirmed) {
-      return;
-    }
-
-    setUpdatingId(periodo.id);
-
     try {
-      await activatePeriodo(periodo.id);
+      if (modalMode === 'edit' && editingId !== null) {
+        await updatePeriodo(editingId, values);
+        setSuccessMessage('Período académico actualizado correctamente.');
+      } else if (authUserId) {
+        await createPeriodo(values, authUserId);
+        setSuccessMessage('Período académico creado correctamente.');
+      }
 
       await loadPeriodos();
-      setSuccessMessage(`"${periodo.nombre}" fue seleccionado como período activo.`);
+      handleCloseModal();
     } catch (error) {
       if (error instanceof ApiError) {
         setActionError(error.message);
-        return;
+      } else {
+        setActionError('No se pudo guardar el período.');
       }
-
-      setActionError('No se pudo activar el período.');
     } finally {
-      setUpdatingId(null);
+      setSaving(false);
     }
-  };
+  }
 
-  const handleDeletePeriodo = async (periodo: PeriodoAcademico) => {
-    if (periodo.estado.toUpperCase() === 'ACTIVO') {
-      setActionError('No se puede borrar el período activo.');
-      return;
-    }
-
-    setActionError('');
-    setSuccessMessage('');
-
+  async function handleDeletePeriodo(periodo: PeriodoAcademico) {
     const confirmed = window.confirm(`¿Deseas borrar el período "${periodo.nombre}"?`);
-    if (!confirmed) {
-      return;
-    }
+    if (!confirmed) return;
 
     setDeletingId(periodo.id);
+    setActionError('');
+    setSuccessMessage('');
 
     try {
       await deletePeriodo(periodo.id);
@@ -166,175 +140,147 @@ export function PeriodosAcademicosPage() {
     } catch (error) {
       if (error instanceof ApiError) {
         setActionError(error.message);
-        return;
+      } else {
+        setActionError('No se pudo borrar el período.');
       }
-
-      setActionError('No se pudo borrar el período.');
     } finally {
       setDeletingId(null);
     }
-  };
+  }
 
-  const sortedPeriodos = [...periodos].sort((a, b) => {
-    const aTime = a.created_at ? new Date(a.created_at).getTime() : a.id;
-    const bTime = b.created_at ? new Date(b.created_at).getTime() : b.id;
-
-    return bTime - aTime;
-  });
+  const editingPeriodo = periodos.find((periodo) => periodo.id === editingId);
 
   return (
-    <section className="catalog-page">
-      <div className="toolbar">
-        <div className="catalog-summary">Gestión de Períodos Académicos</div>
-      </div>
+    <section className="periodos-shell">
+      <aside className="periodos-brand-panel">
+        <div className="periodos-brand-card">
+          <div className="periodos-brand-emblem">PA</div>
+        </div>
+        <div className="periodos-brand-copy">
+          <span className="periodos-brand-line" />
+          <h1>Períodos Académicos</h1>
+          <p>Configuración y control de los periodos activos y cerrados del sistema.</p>
+        </div>
+      </aside>
 
-      {loadError ? <div className="feedback error">{loadError}</div> : null}
-      {actionError ? <div className="feedback error">{actionError}</div> : null}
-      {successMessage ? <div className="feedback success">{successMessage}</div> : null}
-
-      <div className="content-grid" style={{ gridTemplateColumns: '0.82fr 1.18fr', paddingTop: 40 }}>
-        <section className="table-card" style={{ padding: 28, minHeight: 560 }}>
-          <h3 style={{ marginTop: 0 }}>Crear Nuevo Período Académico</h3>
-          <div style={{ borderTop: '1px solid #dbe4f0', margin: '48px 0 28px' }} />
-
-          <form onSubmit={handleSubmit} style={{ display: 'grid', gap: 28 }}>
-            <label className="period-field">
-              <span>Nombre del Período</span>
-              <input
-                type="text"
-                value={form.nombre}
-                onChange={handleChange('nombre')}
-                placeholder="Ej: Agosto - Diciembre 2026"
-                required
-                maxLength={100}
-                style={{
-                  fontSize: 20,
-                  fontWeight: 500,
-                  border: 'none',
-                  borderBottom: '1px solid #dbe4f0',
-                  padding: '8px 0',
-                  outline: 'none',
-                  color: '#1a1a1a',
-                }}
-              />
-            </label>
-
-            <label className="period-field">
-              <span>Fecha de Inicio</span>
-              <input
-                type="date"
-                value={form.fecha_inicio}
-                onChange={handleChange('fecha_inicio')}
-                required
-                style={{
-                  fontSize: 20,
-                  fontWeight: 500,
-                  border: 'none',
-                  borderBottom: '1px solid #dbe4f0',
-                  padding: '8px 0',
-                  outline: 'none',
-                  color: '#1a1a1a',
-                }}
-              />
-            </label>
-
-            <label className="period-field">
-              <span>Fecha de Fin</span>
-              <input
-                type="date"
-                value={form.fecha_fin}
-                onChange={handleChange('fecha_fin')}
-                required
-                style={{
-                  fontSize: 20,
-                  fontWeight: 500,
-                  border: 'none',
-                  borderBottom: '1px solid #dbe4f0',
-                  padding: '8px 0',
-                  outline: 'none',
-                color: '#1a1a1a',
-                }}
-              />
-            </label>
-
-            {formError ? <div className="feedback error">{formError}</div> : null}
-
-            <button
-              type="submit"
-              className="primary-btn"
-              disabled={saving}
-              style={{ marginTop: 20, width: 270 }}
-            >
-              {saving ? 'Guardando...' : 'Guardar Nuevo Período'}
+      <main className="periodos-content-panel">
+        <div className="periodos-card">
+          <div className="periodos-card-head">
+            <div>
+              <p className="periodos-kicker">Restablecer configuración</p>
+              <h2>Gestión de Períodos Académicos</h2>
+              <span>Crear, editar y eliminar registros con paginación.</span>
+            </div>
+            <button type="button" className="primary-btn" onClick={handleOpenCreate}>
+              + Nuevo Período
             </button>
-          </form>
-        </section>
+          </div>
 
-        <section className="table-card" style={{ padding: 22, minHeight: 660, overflowX: 'auto' }}>
-          <h3 style={{ marginTop: 0, marginBottom: 24 }}>Períodos Anteriores</h3>
-          <table>
-            <thead>
-              <tr>
-                <th>Período</th>
-                <th>Inicio</th>
-                <th>Fin</th>
-                <th>Secciones</th>
-                <th>Estado</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
+          {loadError ? <div className="feedback error">{loadError}</div> : null}
+          {actionError ? <div className="feedback error">{actionError}</div> : null}
+          {successMessage ? <div className="feedback success">{successMessage}</div> : null}
+
+          <div className="table-card full">
+            <table>
+              <thead>
                 <tr>
-                  <td colSpan={6}>Cargando períodos...</td>
+                  <th>Período</th>
+                  <th>Inicio</th>
+                  <th>Fin</th>
+                  <th>Secciones</th>
+                  <th>Estado</th>
+                  <th>Acciones</th>
                 </tr>
-              ) : periodos.length === 0 ? (
-                <tr>
-                  <td colSpan={6}>No hay períodos registrados todavía.</td>
-                </tr>
-              ) : (
-                sortedPeriodos.map((periodo) => (
-                  <tr key={periodo.id}>
-                    <td>{periodo.nombre}</td>
-                    <td>{formatFecha(periodo.fecha_inicio)}</td>
-                    <td>{formatFecha(periodo.fecha_fin)}</td>
-                    <td>{periodo.secciones}</td>
-                    <td>
-                      <span className={`tag state ${periodo.estado.toLowerCase()}`}>
-                        {formatEstado(periodo.estado)}
-                      </span>
-                    </td>
-                    <td>
-                      <div className="row-actions">
-                        <button
-                          type="button"
-                          className="secondary-btn"
-                          onClick={() => handleSelectPeriodo(periodo)}
-                          disabled={updatingId === periodo.id || periodo.estado.toUpperCase() === 'ACTIVO'}
-                        >
-                          {periodo.estado.toUpperCase() === 'ACTIVO'
-                            ? 'Activo'
-                            : updatingId === periodo.id
-                              ? 'Seleccionando...'
-                              : 'Seleccionar'}
-                        </button>
-                        <button
-                          type="button"
-                          className="delete-btn"
-                          onClick={() => handleDeletePeriodo(periodo)}
-                          disabled={deletingId === periodo.id || periodo.estado.toUpperCase() === 'ACTIVO'}
-                        >
-                          {deletingId === periodo.id ? 'Borrando...' : 'Borrar'}
-                        </button>
-                      </div>
-                    </td>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan={6}>Cargando períodos...</td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </section>
-      </div>
+                ) : visiblePeriodos.length === 0 ? (
+                  <tr>
+                    <td colSpan={6}>No hay períodos registrados todavía.</td>
+                  </tr>
+                ) : (
+                  visiblePeriodos.map((periodo) => (
+                    <tr key={periodo.id}>
+                      <td>{periodo.nombre}</td>
+                      <td>{formatFecha(periodo.fecha_inicio)}</td>
+                      <td>{formatFecha(periodo.fecha_fin)}</td>
+                      <td>{periodo.secciones}</td>
+                      <td>
+                        <span className={`tag state ${periodo.estado.toLowerCase()}`}>
+                          {formatEstado(periodo.estado)}
+                        </span>
+                      </td>
+                      <td>
+                        <div className="row-actions">
+                          <button type="button" className="edit-btn" onClick={() => handleOpenEdit(periodo.id)}>
+                            Editar
+                          </button>
+                          <button
+                            type="button"
+                            className="delete-btn"
+                            onClick={() => handleDeletePeriodo(periodo)}
+                            disabled={deletingId === periodo.id}
+                          >
+                            {deletingId === periodo.id ? 'Borrando...' : 'Eliminar'}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+
+            {!loading && sortedPeriodos.length > PAGE_SIZE ? (
+              <div className="pagination-bar">
+                <span>
+                  Página {safePage} de {totalPages}
+                </span>
+                <div className="pagination-actions">
+                  <button
+                    type="button"
+                    className="secondary-btn"
+                    onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                    disabled={safePage <= 1}
+                  >
+                    Anterior
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary-btn"
+                    onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                    disabled={safePage >= totalPages}
+                  >
+                    Siguiente
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </main>
+
+      {modalMode === 'create' ? (
+        <PeriodoAcademicoModal
+          title="Nuevo Período Académico"
+          onClose={handleCloseModal}
+          onSave={handleSave}
+          saving={saving}
+        />
+      ) : null}
+
+      {modalMode === 'edit' && editingPeriodo ? (
+        <PeriodoAcademicoModal
+          title="Editar Período Académico"
+          initialData={editingPeriodo}
+          onClose={handleCloseModal}
+          onSave={handleSave}
+          saving={saving}
+        />
+      ) : null}
     </section>
   );
 }
