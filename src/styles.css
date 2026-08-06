@@ -483,6 +483,38 @@ button,input{font:inherit}
   background:#fff;border-radius:20px;box-shadow:0 20px 60px rgba(19,38,74,.25);
   padding:28px 32px 32px
 }
+
+.modal-card.confirm-card {
+  width: min(420px, 100%)
+}
+
+.confirm-body {
+  text-align: center;
+  padding: 8px 4px 20px
+}
+
+.confirm-icon {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 14px;
+  border-radius: 50%;
+  background: #fdecec;
+  color: #dc2626;
+  font-size: 1.6rem;
+  display: grid;
+  place-items: center
+}
+
+.confirm-body p {
+  margin: 0 0 6px;
+  color: #2d3748;
+  font-size: 1rem
+}
+
+.confirm-subtext {
+  color: #8592a6 !important;
+  font-size: .88rem !important
+}
 .modal-header{
   display:flex;align-items:center;justify-content:space-between;margin-bottom:20px
 }

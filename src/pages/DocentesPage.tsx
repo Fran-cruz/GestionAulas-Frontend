@@ -75,6 +75,11 @@ export function DocentesPage() {
   const [formError, setFormError] = useState('');
   const [saving, setSaving] = useState(false);
 
+  // Modal propio de "¿seguro que quieres eliminar?", en vez de window.confirm.
+  const [deletingDocente, setDeletingDocente] = useState<Docente | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+
   const loadDocentes = async () => {
     setLoading(true);
     setLoadError('');
@@ -188,15 +193,30 @@ export function DocentesPage() {
     }
   };
 
-  const handleDelete = async (docente: Docente) => {
-    const confirmed = window.confirm(`¿Eliminar a ${docente.nombre_completo}?`);
-    if (!confirmed) return;
+  const askDelete = (docente: Docente) => {
+    setDeleteError('');
+    setDeletingDocente(docente);
+  };
 
+  const cancelDelete = () => {
+    if (deleting) return;
+    setDeletingDocente(null);
+    setDeleteError('');
+  };
+
+  const confirmDelete = async () => {
+    if (!deletingDocente) return;
+
+    setDeleting(true);
+    setDeleteError('');
     try {
-      await deleteDocente(docente.id);
+      await deleteDocente(deletingDocente.id);
+      setDeletingDocente(null);
       await loadDocentes();
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'No se pudo eliminar el docente.');
+      setDeleteError(error instanceof ApiError ? error.message : 'No se pudo eliminar el docente.');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -270,7 +290,7 @@ export function DocentesPage() {
                         <button className="edit-btn" onClick={() => openEditModal(docente)}>
                           Editar
                         </button>
-                        <button className="edit-btn" onClick={() => handleDelete(docente)}>
+                        <button className="edit-btn" onClick={() => askDelete(docente)}>
                           Eliminar
                         </button>
                       </td>
@@ -369,6 +389,38 @@ export function DocentesPage() {
                     </button>
                   </div>
                 </form>
+              </div>
+            </div>
+        ) : null}
+
+        {deletingDocente ? (
+            <div className="modal-overlay" onClick={cancelDelete}>
+              <div className="modal-card confirm-card" onClick={(event) => event.stopPropagation()}>
+                <div className="modal-header">
+                  <h3>Eliminar Docente</h3>
+                  <button className="modal-close" onClick={cancelDelete} disabled={deleting} type="button">
+                    ×
+                  </button>
+                </div>
+
+                <div className="confirm-body">
+                  <div className="confirm-icon">⚠</div>
+                  <p>
+                    ¿Realmente deseas eliminar a <strong>{deletingDocente.nombre_completo}</strong>?
+                  </p>
+                  <p className="confirm-subtext">Esta acción no se puede deshacer.</p>
+                </div>
+
+                {deleteError ? <div className="feedback error">{deleteError}</div> : null}
+
+                <div className="modal-actions">
+                  <button type="button" className="secondary-btn" onClick={cancelDelete} disabled={deleting}>
+                    Cancelar
+                  </button>
+                  <button type="button" className="delete-btn" onClick={() => void confirmDelete()} disabled={deleting}>
+                    {deleting ? 'Eliminando...' : 'Sí, eliminar'}
+                  </button>
+                </div>
               </div>
             </div>
         ) : null}
