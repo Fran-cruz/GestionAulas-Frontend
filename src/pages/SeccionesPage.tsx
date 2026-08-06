@@ -1,23 +1,23 @@
-import { FormEvent, useEffect, useState } from 'react';
-import { ApiError } from '../lib/api';
+import {FormEvent, useEffect, useMemo, useRef, useState} from 'react';
+import {ApiError} from '../lib/api';
 import {
-  Seccion,
-  SeccionFormValues,
   createSeccion,
   deleteSeccion,
-  listSecciones,
-  seccionCodigo,
-  updateSeccion,
   formatEstado,
   formatTipoSesion,
+  listSecciones,
+  Seccion,
+  seccionCodigo,
+  SeccionFormValues,
+  updateSeccion,
 } from '../lib/secciones';
-import { Docente, listDocentes } from '../lib/docentes';
+import {Docente, listDocentes} from '../lib/docentes';
 
 const emptyForm: SeccionFormValues = {
   materia: '',
   codigo_materia: '',
   id_docente: '',
-  tipo_sesion: 'MATUTINO',
+  tipo_sesion: 'matutino',
   area_academica: '',
   duracion_sesion_horas: '0',
   horas_semanales_totales: '0',
@@ -35,8 +35,16 @@ export function SeccionesPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState<SeccionFormValues>(emptyForm);
+  // Foto del formulario tal como quedó cargado al abrir "Editar", para
+  // saber si el usuario realmente cambió algo antes de dejar guardar.
+  const [initialForm, setInitialForm] = useState<SeccionFormValues>(emptyForm);
   const [formError, setFormError] = useState('');
   const [saving, setSaving] = useState(false);
+
+  // Buscador de docente (combobox) dentro del formulario.
+  const [docenteQuery, setDocenteQuery] = useState('');
+  const [docenteMenuOpen, setDocenteMenuOpen] = useState(false);
+  const docenteBoxRef = useRef<HTMLDivElement | null>(null);
 
   const loadSecciones = async () => {
     setLoading(true);
@@ -65,16 +73,28 @@ export function SeccionesPage() {
     loadDocentes();
   }, []);
 
+  const docenteById = useMemo(() => new Map(docentes.map((d) => [d.id, d])), [docentes]);
+
+  const filteredDocentes = useMemo(() => {
+    const query = docenteQuery.trim().toLowerCase();
+    if (!query) return docentes;
+    return docentes.filter((d) => d.nombre_completo.toLowerCase().includes(query));
+  }, [docentes, docenteQuery]);
+
+  const hasChanges = editingId !== null && JSON.stringify(form) !== JSON.stringify(initialForm);
+  const canSubmit = editingId === null || hasChanges;
+
   const openCreateModal = () => {
     setEditingId(null);
     setForm(emptyForm);
+    setInitialForm(emptyForm);
+    setDocenteQuery('');
     setFormError('');
     setModalOpen(true);
   };
 
   const openEditModal = (seccion: Seccion) => {
-    setEditingId(seccion.id);
-    setForm({
+    const loaded: SeccionFormValues = {
       materia: seccion.materia,
       codigo_materia: seccion.codigo_materia ?? '',
       id_docente: seccion.id_docente ? String(seccion.id_docente) : '',
@@ -85,7 +105,11 @@ export function SeccionesPage() {
       cantidad_alumnos: String(seccion.cantidad_alumnos ?? 0),
       sesiones_por_semana: String(seccion.sesiones_por_semana ?? 1),
       activa: seccion.activa,
-    });
+    };
+    setEditingId(seccion.id);
+    setForm(loaded);
+    setInitialForm(loaded);
+    setDocenteQuery(seccion.docente_nombre ?? '');
     setFormError('');
     setModalOpen(true);
   };
@@ -93,6 +117,7 @@ export function SeccionesPage() {
   const closeModal = () => {
     if (saving) return;
     setModalOpen(false);
+    setDocenteMenuOpen(false);
   };
 
   const handleChange = (field: keyof SeccionFormValues) => (
@@ -105,8 +130,22 @@ export function SeccionesPage() {
     }
   };
 
+  const selectDocente = (docente: Docente | null) => {
+    setForm((prev) => ({...prev, id_docente: docente ? String(docente.id) : ''}));
+    setDocenteQuery(docente ? docente.nombre_completo : '');
+    setDocenteMenuOpen(false);
+  };
+
+  const handleDocenteBlur = () => {
+    // Pequeño margen para que el click en una opción del menú registre
+    // antes de que este blur lo cierre.
+    window.setTimeout(() => setDocenteMenuOpen(false), 150);
+  };
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!canSubmit) return;
+
     setFormError('');
     setSaving(true);
 
@@ -186,7 +225,7 @@ export function SeccionesPage() {
                     <tr key={seccion.id}>
                       <td>{seccion.materia}</td>
                       <td>{seccionCodigo(seccion.id)}</td>
-                      <td>{seccion.docente_nombre || '—'}</td>
+                      <td>{seccion.docente_nombre || docenteById.get(seccion.id_docente ?? -1)?.nombre_completo || '—'}</td>
                       <td>{formatTipoSesion(seccion.tipo_sesion)}</td>
                       <td>{seccion.area_academica}</td>
                       <td>{seccion.horas_semanales_totales}h</td>
@@ -243,16 +282,43 @@ export function SeccionesPage() {
                       />
                     </div>
 
-                    <div className="form-field">
+                    <div className="form-field combobox" ref={docenteBoxRef}>
                       <label>Docente Titular</label>
-                      <select value={form.id_docente} onChange={handleChange('id_docente')}>
-                        <option value="">Seleccionar Docente</option>
-                        {docentes.map((docente) => (
-                            <option key={docente.id} value={docente.id}>
-                              {docente.nombre_completo}
-                            </option>
-                        ))}
-                      </select>
+                      <input
+                          type="text"
+                          value={docenteQuery}
+                          placeholder="Buscar docente por nombre..."
+                          onFocus={() => setDocenteMenuOpen(true)}
+                          onBlur={handleDocenteBlur}
+                          onChange={(event) => {
+                            setDocenteQuery(event.target.value);
+                            setDocenteMenuOpen(true);
+                            if (form.id_docente) {
+                              setForm((prev) => ({...prev, id_docente: ''}));
+                            }
+                          }}
+                      />
+                      {docenteMenuOpen ? (
+                          <div className="combobox-menu">
+                            <button type="button" className="combobox-option muted" onClick={() => selectDocente(null)}>
+                              Sin docente
+                            </button>
+                            {filteredDocentes.length === 0 ? (
+                                <div className="combobox-empty">Sin resultados</div>
+                            ) : (
+                                filteredDocentes.map((docente) => (
+                                    <button
+                                        type="button"
+                                        key={docente.id}
+                                        className="combobox-option"
+                                        onClick={() => selectDocente(docente)}
+                                    >
+                                      {docente.nombre_completo}
+                                    </button>
+                                ))
+                            )}
+                          </div>
+                      ) : null}
                     </div>
                   </div>
 
@@ -260,8 +326,8 @@ export function SeccionesPage() {
                     <div className="form-field">
                       <label>Tipo de Sesión *</label>
                       <select value={form.tipo_sesion} onChange={handleChange('tipo_sesion')}>
-                        <option value="MATUTINO">Matutino</option>
-                        <option value="VESPERTINO">Vespertino</option>
+                        <option value="matutino">Matutino</option>
+                        <option value="vespertino">Vespertino</option>
                       </select>
                     </div>
 
@@ -345,7 +411,7 @@ export function SeccionesPage() {
                     <button type="button" className="secondary-btn" onClick={closeModal} disabled={saving}>
                       Cancelar
                     </button>
-                    <button type="submit" className="primary-btn" disabled={saving}>
+                    <button type="submit" className="primary-btn" disabled={saving || !canSubmit}>
                       {saving ? 'Guardando...' : editingId ? 'Guardar Cambios' : 'Crear Sección'}
                     </button>
                   </div>

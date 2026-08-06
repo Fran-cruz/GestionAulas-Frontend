@@ -1,4 +1,4 @@
-import { apiRequest } from './api';
+import {apiRequest} from './api';
 
 export type EstadoSeccion = 'true' | 'false';
 
@@ -7,7 +7,7 @@ export type Seccion = {
     materia: string;
     codigo_materia: string | null;
     id_docente: number | null;
-    tipo_sesion: 'MATUTINO' | 'VESPERTINO';
+    tipo_sesion: 'matutino' | 'vespertino';
     area_academica: string;
     duracion_sesion_horas: number;
     horas_semanales_totales: number;
@@ -23,7 +23,7 @@ export type SeccionFormValues = {
     materia: string;
     codigo_materia: string;
     id_docente: string;
-    tipo_sesion: 'MATUTINO' | 'VESPERTINO';
+    tipo_sesion: 'matutino' | 'vespertino';
     area_academica: string;
     duracion_sesion_horas: string;
     horas_semanales_totales: string;
