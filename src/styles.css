@@ -648,3 +648,73 @@ button,input{font:inherit}
   .auth-brand-block h1{font-size:3rem}
   .auth-card{padding:40px 28px 32px}
 }
+/* ========================================
+   ESTILOS ADICIONALES MÍNIMOS - PERÍODOS
+   Solo lo que NO existe en tu styles.css
+   ======================================== */
+
+/* Sobreescribir estilos de tabla para períodos */
+.table-card table tbody tr td:first-child {
+    font-weight: 500;
+    color: #1f2b3d;
+}
+
+.table-card table tbody tr td:nth-child(4) {
+    text-align: center;
+    font-weight: 500;
+}
+
+/* Estados específicos de período */
+.tag.state.activo {
+    background: #e4f8e8;
+    color: #22c55e;
+}
+
+.tag.state.cerrado {
+    background: #fff0cf;
+    color: #f59e0b;
+}
+
+/* Opcional: Hover en filas de tabla */
+.table-card tbody tr:hover {
+    background: #f6f9ff;
+}
+
+/* Espaciado de tabla de períodos */
+.table-card table tbody tr td {
+    padding: 18px;
+    border-bottom: 1px solid #e1e7f1;
+    color: #2d3748;
+}
+
+/* Asegurar que el modal se vea bien */
+.modal-form label span {
+    display: block;
+    color: #4a5568;
+    font-weight: 700;
+    font-size: 0.88rem;
+    margin-bottom: 6px;
+}
+
+/* Feedback messages */
+.feedback {
+    margin: 0 24px 10px;
+    color: #4c5d75;
+    background: #f5f8fd;
+    border-left: 4px solid #2f6bf3;
+    padding: 10px 12px;
+    border-radius: 10px;
+    font-size: 0.92rem;
+}
+
+.feedback.success {
+    background: #e8faf0;
+    border-left-color: #16a34a;
+    color: #16a34a;
+}
+
+.feedback.error {
+    background: #fde8e8;
+    border-left-color: #dc2626;
+    color: #991b1b;
+}

@@ -77,6 +77,7 @@ export function formatFecha(fecha: string) {
   const [year, month, day] = soloFecha.split('-');
   return `${day}/${month}/${year}`;
 }
+
 export function formatEstado(estado: string) {
   const lower = estado.toLowerCase();
   return lower.charAt(0).toUpperCase() + lower.slice(1);
