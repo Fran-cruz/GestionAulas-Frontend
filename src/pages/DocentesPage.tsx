@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { ApiError } from '../lib/api';
 import {
   Docente,
@@ -29,12 +29,36 @@ export function DocentesPage() {
   const [docentes, setDocentes] = useState<Docente[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
+  const [busqueda, setBusqueda] = useState('');
+
+  const docentesFiltrados = useMemo(() => {
+    const termino = busqueda.trim().toLowerCase();
+    if (!termino) return docentes;
+
+    return docentes.filter((docente) => {
+      const campos = [
+        docente.nombre_completo,
+        docente.correo_institucional,
+        docente.departamento,
+        docente.especialidad,
+        docente.id ? codigoDocente(docente.id) : '',
+      ];
+      return campos.some((campo) => campo?.toLowerCase().includes(termino));
+    });
+  }, [docentes, busqueda]);
 
   const [modalAbierto, setModalAbierto] = useState(false);
   const [editandoId, setEditandoId] = useState<number | null>(null);
   const [form, setForm] = useState<Docente>(formVacio);
   const [formError, setFormError] = useState('');
   const [guardando, setGuardando] = useState(false);
+  const [mensajeExito, setMensajeExito] = useState('');
+
+  useEffect(() => {
+    if (!mensajeExito) return;
+    const timer = setTimeout(() => setMensajeExito(''), 4000);
+    return () => clearTimeout(timer);
+  }, [mensajeExito]);
 
   async function cargarDocentes() {
     setLoading(true);
@@ -96,8 +120,20 @@ export function DocentesPage() {
       setFormError('El correo institucional es obligatorio.');
       return;
     }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.correo_institucional.trim())) {
+      setFormError('El correo institucional no es válido.');
+      return;
+    }
     if (!form.departamento.trim()) {
       setFormError('El departamento es obligatorio.');
+      return;
+    }
+    if (!form.telefono.trim()) {
+      setFormError('El teléfono es obligatorio.');
+      return;
+    }
+    if (!form.especialidad.trim()) {
+      setFormError('La especialidad es obligatoria.');
       return;
     }
 
@@ -114,8 +150,10 @@ export function DocentesPage() {
     try {
       if (editandoId) {
         await modificarDocente(editandoId, payload);
+        setMensajeExito(`Docente "${payload.nombre_completo}" actualizado correctamente.`);
       } else {
         await crearDocente(payload);
+        setMensajeExito(`Docente "${payload.nombre_completo}" creado correctamente.`);
       }
       setModalAbierto(false);
       await cargarDocentes();
@@ -133,6 +171,7 @@ export function DocentesPage() {
 
     try {
       await eliminarDocente(docente.id);
+      setMensajeExito(`Docente "${docente.nombre_completo}" eliminado correctamente.`);
       await cargarDocentes();
     } catch (error) {
       alert(error instanceof Error ? error.message : 'No se pudo eliminar el docente.');
@@ -142,13 +181,24 @@ export function DocentesPage() {
   return (
       <section className="catalog-page">
         <div className="toolbar">
-          <div className="catalog-summary">{docentes.length} Docentes Registrados</div>
+          <div className="catalog-summary">{docentesFiltrados.length} Docentes Registrados</div>
+          <div className="search-box narrow">
+            🔎
+            <input
+                type="text"
+                placeholder="Buscar por nombre, correo, depto..."
+                value={busqueda}
+                onChange={(event) => setBusqueda(event.target.value)}
+                style={{ border: 0, background: 'transparent', outline: 'none', width: '100%', font: 'inherit', color: 'inherit', marginLeft: 8 }}
+            />
+          </div>
           <button className="primary-btn" onClick={abrirCrear}>
             + Nuevo Docente
           </button>
         </div>
 
         {loadError ? <div className="feedback error">{loadError}</div> : null}
+        {mensajeExito ? <div className="feedback success">{mensajeExito}</div> : null}
 
         <div className="table-card full">
           <table>
@@ -169,12 +219,14 @@ export function DocentesPage() {
                 <tr>
                   <td colSpan={8}>Cargando docentes...</td>
                 </tr>
-            ) : docentes.length === 0 ? (
+            ) : docentesFiltrados.length === 0 ? (
                 <tr>
-                  <td colSpan={8}>No hay docentes registrados todavía.</td>
+                  <td colSpan={8}>
+                    {busqueda ? 'Ningún docente coincide con la búsqueda.' : 'No hay docentes registrados todavía.'}
+                  </td>
                 </tr>
             ) : (
-                docentes.map((docente) => (
+                docentesFiltrados.map((docente) => (
                     <tr key={docente.id}>
                       <td>{docente.id ? codigoDocente(docente.id) : '—'}</td>
                       <td>{docente.nombre_completo}</td>
@@ -212,7 +264,7 @@ export function DocentesPage() {
                   </button>
                 </div>
 
-                <form className="modal-form" onSubmit={handleSubmit}>
+                <form className="modal-form" onSubmit={handleSubmit} noValidate>
                   <label>
                     Nombre completo
                     <input
