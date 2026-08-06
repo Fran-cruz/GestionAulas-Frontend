@@ -11,9 +11,13 @@ export function TablaAulas({
   editarAula,
   borrarAula,
 }: Props) {
+
   return (
     <div className="table-card full">
-      <h3>Lista de Aulas</h3>
+
+      <div className="section-title">
+        <h3>Lista de Aulas</h3>
+      </div>
 
       <table>
         <thead>
@@ -42,41 +46,51 @@ export function TablaAulas({
                 <td>{aula.capacidad_maxima}</td>
                 <td>{aula.descripcion}</td>
                 <td>
-                  <span className={`tag state ${aula.estado.toLowerCase()}`}>
+                  <span
+                    className={`estado-badge ${
+                      aula.estado.toLowerCase() === "disponible"
+                        ? "estado-disponible"
+                        : "estado-mantenimiento"
+                    }`}
+                  >
                     {aula.estado}
                   </span>
                 </td>
-                <td>
-                  <button
-                    className="edit-btn"
-                    onClick={() => editarAula(aula)}
-                  >
-                    Editar
-                  </button>
 
-                  <button
-                    className="delete-btn"
-                    onClick={() => {
-                      if (aula.id !== undefined) {
-                        borrarAula(aula.id);
-                      }
-                    }}
-                    style={{ marginLeft: "8px" }}
-                  >
-                    Eliminar
-                  </button>
-                </td>
+                        <td>
+            <div className="acciones">
+              <button
+                className="edit-btn"
+                onClick={() => editarAula(aula)}
+              >
+                Editar
+              </button>
+
+              <button
+                className="delete-btn"
+                onClick={() =>
+                  aula.id !== undefined && borrarAula(aula.id)
+                }
+              >
+                Eliminar
+              </button>
+            </div>
+          </td>
               </tr>
             ))
           ) : (
             <tr>
-              <td colSpan={9} style={{ textAlign: "center" }}>
+              <td
+                colSpan={9}
+                style={{ textAlign: "center" }}
+              >
                 No hay aulas registradas.
               </td>
             </tr>
           )}
         </tbody>
       </table>
+
     </div>
   );
 }
