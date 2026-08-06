@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
+import { FiSearch } from "react-icons/fi";
 
 import {
   obtenerAulas,
@@ -8,12 +9,10 @@ import {
   eliminarAula,
 } from "../lib/aulasServices";
 
-import type { Aula, AulaData } from "../lib/aulasServices";
+import type { Aula } from "../lib/aulasServices";
 
-import {
-  FormularioAula,
-  AulaForm,
-} from "../components/FormularioAula";
+import { AulaModal } from "../components/AulaModal";
+import type { AulaForm } from "../components/AulaModal";
 
 import { TablaAulas } from "../components/TablaAulas";
 
@@ -21,6 +20,15 @@ export function AulasPage() {
   const [aulas, setAulas] = useState<Aula[]>([]);
   const [buscar, setBuscar] = useState("");
   const [aulaID, setAulaID] = useState<number | null>(null);
+
+  const [modalOpen, setModalOpen] = useState(false);
+
+  const [aulaAEliminar, setAulaAEliminar] = useState<Aula | null>(null);
+
+  const [alerta, setAlerta] = useState<{
+    tipo: "success" | "error";
+    mensaje: string;
+  } | null>(null);
 
   const [formulario, setFormulario] = useState<AulaForm>({
     nombre: "",
@@ -43,6 +51,11 @@ export function AulasPage() {
       );
     } catch (error) {
       console.error(error);
+
+      setAlerta({
+        tipo: "error",
+        mensaje: "No fue posible cargar las aulas.",
+      });
     }
   }
 
@@ -50,12 +63,10 @@ export function AulasPage() {
     getAulas();
   }, []);
 
-  async function guardarAula(
-    e: FormEvent<HTMLFormElement>
-  ) {
+  async function guardarAula(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
-        const datos = {
+    const datos = {
       nombre: formulario.nombre,
       edificio: formulario.edificio,
       piso: formulario.piso.toString(),
@@ -64,17 +75,42 @@ export function AulasPage() {
       descripcion: formulario.descripcion,
       estado: formulario.estado.toLowerCase(),
     };
+
     try {
       if (aulaID !== null) {
         await modificarAula(aulaID, datos);
+
+        setAlerta({
+          tipo: "success",
+          mensaje: "Aula modificada correctamente.",
+        });
       } else {
         await crearAula(datos);
+
+        setAlerta({
+          tipo: "success",
+          mensaje: "Aula añadida correctamente.",
+        });
       }
 
       await getAulas();
       limpiarFormulario();
+      setModalOpen(false);
+
+      setTimeout(() => {
+        setAlerta(null);
+      }, 3000);
     } catch (error) {
       console.error(error);
+
+      setAlerta({
+        tipo: "error",
+        mensaje: "No fue posible guardar el aula.",
+      });
+
+      setTimeout(() => {
+        setAlerta(null);
+      }, 3000);
     }
   }
 
@@ -92,14 +128,43 @@ export function AulasPage() {
       descripcion: aula.descripcion ?? "",
       estado: aula.estado ?? "",
     });
+
+    setModalOpen(true);
   }
 
-  async function borrarAula(id: number) {
+  function pedirEliminar(id: number) {
+    const aula = aulas.find((a) => a.id === id);
+    if (aula) setAulaAEliminar(aula);
+  }
+
+  async function confirmarEliminar() {
+    if (!aulaAEliminar?.id) return;
+
     try {
-      await eliminarAula(id);
+      await eliminarAula(aulaAEliminar.id);
       await getAulas();
+
+      setAlerta({
+        tipo: "success",
+        mensaje: "Aula eliminada correctamente.",
+      });
+
+      setTimeout(() => {
+        setAlerta(null);
+      }, 3000);
     } catch (error) {
       console.error(error);
+
+      setAlerta({
+        tipo: "error",
+        mensaje: "No fue posible eliminar el aula.",
+      });
+
+      setTimeout(() => {
+        setAlerta(null);
+      }, 3000);
+    } finally {
+      setAulaAEliminar(null);
     }
   }
 
@@ -124,43 +189,91 @@ export function AulasPage() {
   return (
     <section className="catalog-page">
       <div className="toolbar">
-        <h2>Aulas</h2>
-
-        <span>Administración de aulas</span>
-
-        <div className="period-chip">
-          {aulas.length} Aulas Registradas
-        </div>
-      </div>
-
-      <div className="aulas-layout">
-        <FormularioAula
-          formulario={formulario}
-          setFormulario={setFormulario}
-          guardarAula={guardarAula}
-          limpiarFormulario={limpiarFormulario}
-          aulaID={aulaID}
-        />
-
         <div>
-          <input
-            className="search-input"
-            type="text"
-            placeholder="Buscar aula..."
-            value={buscar}
-            onChange={(e) => setBuscar(e.target.value)}
-          />
-
-          <br />
-          <br />
-
-          <TablaAulas
-            aulas={aulasFiltradas}
-            editarAula={editarAula}
-            borrarAula={borrarAula}
-          />
+          <h2>Aulas</h2>
+          <span>Administración de aulas</span>
         </div>
+
+        <button
+          className="primary-btn"
+          onClick={() => {
+            limpiarFormulario();
+            setModalOpen(true);
+          }}
+        >
+          + Añadir Aula
+        </button>
       </div>
+
+      {alerta && (
+        <div
+          className={`alert ${
+            alerta.tipo === "success" ? "alert-success" : "alert-error"
+          }`}
+        >
+          {alerta.mensaje}
+        </div>
+      )}
+
+      <div className="period-chip">{aulas.length} Aulas Registradas</div>
+
+      <br />
+      <div className="search-container">
+        <FiSearch className="search-icon" />
+
+        <input
+          className="search-input"
+          type="text"
+          placeholder="Buscar aula..."
+          value={buscar}
+          onChange={(e) => setBuscar(e.target.value)}
+        />
+      </div>
+
+      <br />
+      <br />
+
+      <TablaAulas
+        aulas={aulasFiltradas}
+        editarAula={editarAula}
+        borrarAula={pedirEliminar}
+      />
+
+      <AulaModal
+        isOpen={modalOpen}
+        onClose={() => {
+          limpiarFormulario();
+          setModalOpen(false);
+        }}
+        formulario={formulario}
+        setFormulario={setFormulario}
+        guardarAula={guardarAula}
+        limpiarFormulario={limpiarFormulario}
+        aulaID={aulaID}
+      />
+
+      {aulaAEliminar && (
+        <div className="modal-overlay">
+          <div className="modal-card">
+            <p>
+              ¿Seguro que desea eliminar el aula "{aulaAEliminar.nombre}"?
+            </p>
+
+            <div className="modal-actions">
+              <button
+                className="secondary-btn"
+                onClick={() => setAulaAEliminar(null)}
+              >
+                Cancelar
+              </button>
+
+              <button className="primary-btn" onClick={confirmarEliminar}>
+                Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
