@@ -55,6 +55,7 @@ export function ClasesPorAulaPage() {
   const [saving, setSaving] = useState(false);
 
   const [sectionFilter, setSectionFilter] = useState<'all' | ScheduleAreaKey>('all');
+  const [sectionSearch, setSectionSearch] = useState('');
   const [roomTypeFilter, setRoomTypeFilter] = useState<RoomTypeFilter>('all');
   const [message, setMessage] = useState('Cargando información desde el backend...');
 
@@ -134,9 +135,18 @@ export function ClasesPorAulaPage() {
     return !assignment || !assignment.roomId;
   });
 
-  const filteredSections = unassignedSections.filter(
-      (section) => sectionFilter === 'all' || section.areaKey === sectionFilter,
-  );
+  const filteredSections = unassignedSections.filter((section) => {
+    const matchesArea = sectionFilter === 'all' || section.areaKey === sectionFilter;
+
+    const query = sectionSearch.trim().toLowerCase();
+    const matchesSearch =
+        !query ||
+        section.code.toLowerCase().includes(query) ||
+        section.name.toLowerCase().includes(query) ||
+        section.teacherName.toLowerCase().includes(query);
+
+    return matchesArea && matchesSearch;
+  });
 
   const filteredRooms = rooms.filter((room) => {
     if (roomTypeFilter === 'all') return true;
@@ -399,7 +409,20 @@ export function ClasesPorAulaPage() {
             <strong>Secciones sin Aula</strong>
             <span>{filteredSections.length} visibles · {unassignedSections.length} pendientes</span>
           </div>
-          <div className="search-box">🔎 Buscar sección...</div>
+          <div className="search-box">
+            🔎
+            <input
+                type="text"
+                value={sectionSearch}
+                onChange={(event) => setSectionSearch(event.target.value)}
+                placeholder="Buscar sección..."
+            />
+            {sectionSearch ? (
+                <button type="button" className="search-clear" onClick={() => setSectionSearch('')}>
+                  ×
+                </button>
+            ) : null}
+          </div>
           <div className="filter-row wrap">
             {scheduleSectionFilters.map((filter) => (
                 <button
