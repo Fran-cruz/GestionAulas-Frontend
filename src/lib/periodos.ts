@@ -24,7 +24,10 @@ export function listPeriodos() {
   return apiRequest<PeriodoAcademico[]>('/periodos-academicos');
 }
 
-export function createPeriodo(values: PeriodoFormValues, idUsuarioCreador: number) {
+export function createPeriodo(
+    values: PeriodoFormValues,
+    idUsuarioCreador: number
+) {
   const payload = {
     nombre: values.nombre,
     fecha_inicio: values.fecha_inicio,
@@ -33,13 +36,19 @@ export function createPeriodo(values: PeriodoFormValues, idUsuarioCreador: numbe
     id_usuario_creador: idUsuarioCreador,
   };
 
-  return apiRequest<{ message: string; periodo: PeriodoAcademico }>('/periodos-academicos', {
+  return apiRequest<{
+    message: string;
+    periodo: PeriodoAcademico;
+  }>('/periodos-academicos', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
 }
 
-export function updatePeriodo(id: number, values: PeriodoFormValues) {
+export function updatePeriodo(
+    id: number,
+    values: PeriodoFormValues
+) {
   const payload = {
     nombre: values.nombre,
     fecha_inicio: values.fecha_inicio,
@@ -47,38 +56,55 @@ export function updatePeriodo(id: number, values: PeriodoFormValues) {
     estado: values.estado,
   };
 
-  return apiRequest<{ message: string; periodo: PeriodoAcademico }>(`/periodos-academicos/${id}`, {
+  return apiRequest<{
+    message: string;
+    periodo: PeriodoAcademico;
+  }>(`/periodos-academicos/${id}`, {
     method: 'PUT',
     body: JSON.stringify(payload),
   });
 }
 
-export function updatePeriodoEstado(id: number, estado: EstadoPeriodo) {
-  return apiRequest<{ message: string; periodo: PeriodoAcademico }>(`/periodos-academicos/${id}`, {
+export function updatePeriodoEstado(
+    id: number,
+    estado: EstadoPeriodo
+) {
+  return apiRequest<{
+    message: string;
+    periodo: PeriodoAcademico;
+  }>(`/periodos-academicos/${id}`, {
     method: 'PUT',
     body: JSON.stringify({ estado }),
   });
 }
 
 export function activatePeriodo(id: number) {
-  return apiRequest<{ message: string; periodo: PeriodoAcademico }>(`/periodos-academicos/${id}/activar`, {
+  return apiRequest<{
+    message: string;
+    periodo: PeriodoAcademico;
+  }>(`/periodos-academicos/${id}/activar`, {
     method: 'POST',
   });
 }
 
 export function deletePeriodo(id: number) {
-  return apiRequest<{ message: string }>(`/periodos-academicos/${id}`, {
-    method: 'DELETE',
-  });
+  return apiRequest<{ message: string }>(
+      `/periodos-academicos/${id}`,
+      {
+        method: 'DELETE',
+      }
+  );
 }
 
 export function formatFecha(fecha: string) {
   const soloFecha = fecha.split('T')[0];
   const [year, month, day] = soloFecha.split('-');
+
   return `${day}/${month}/${year}`;
 }
 
 export function formatEstado(estado: string) {
   const lower = estado.toLowerCase();
+
   return lower.charAt(0).toUpperCase() + lower.slice(1);
 }
