@@ -1,15 +1,18 @@
-import { FormEvent, useEffect, useState } from 'react';
-import { ApiError } from '../lib/api';
+import {FormEvent, useEffect, useMemo, useState} from 'react';
+import {ApiError} from '../lib/api';
 import {
-  Docente,
-  DocenteFormValues,
   createDocente,
   deleteDocente,
+  Docente,
   docenteCodigo,
+  DocenteFormValues,
   formatEstado,
   listDocentes,
   updateDocente,
 } from '../lib/docentes';
+
+const CORREO_DOMINIO = '@unicah.edu';
+const TELEFONO_MAX = 14;
 
 const emptyForm: DocenteFormValues = {
   nombre_completo: '',
@@ -20,14 +23,55 @@ const emptyForm: DocenteFormValues = {
   estado: 'ACTIVO',
 };
 
+// Validación de todo el formulario en un solo lugar, con mensajes en
+// español que se muestran en la tarjeta de retroalimentación — nada
+// de los globitos nativos del navegador.
+function validar(form: DocenteFormValues): string | null {
+  if (!form.nombre_completo.trim()) {
+    return 'El nombre completo es obligatorio.';
+  }
+
+  const correo = form.correo_institucional.trim();
+  if (!correo) {
+    return 'El correo institucional es obligatorio.';
+  }
+
+  const formatoValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo);
+  if (!formatoValido) {
+    return 'El correo institucional no tiene un formato válido.';
+  }
+
+  if (!correo.toLowerCase().endsWith(CORREO_DOMINIO)) {
+    return `El correo institucional debe terminar en ${CORREO_DOMINIO}.`;
+  }
+
+  if (form.telefono && !/^\d+$/.test(form.telefono)) {
+    return 'El teléfono solo puede contener números.';
+  }
+
+  if (form.telefono.length > TELEFONO_MAX) {
+    return `El teléfono no puede tener más de ${TELEFONO_MAX} dígitos.`;
+  }
+
+  if (!form.departamento.trim()) {
+    return 'El departamento es obligatorio.';
+  }
+
+  return null;
+}
+
 export function DocentesPage() {
   const [docentes, setDocentes] = useState<Docente[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
+  const [search, setSearch] = useState('');
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState<DocenteFormValues>(emptyForm);
+  // Foto del formulario tal como quedó cargado al abrir "Editar", para
+  // saber si el usuario realmente cambió algo antes de dejar guardar.
+  const [initialForm, setInitialForm] = useState<DocenteFormValues>(emptyForm);
   const [formError, setFormError] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -48,23 +92,40 @@ export function DocentesPage() {
     loadDocentes();
   }, []);
 
+  const filteredDocentes = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return docentes;
+    return docentes.filter((docente) =>
+        docente.nombre_completo.toLowerCase().includes(query) ||
+        docente.correo_institucional.toLowerCase().includes(query) ||
+        (docente.departamento ?? '').toLowerCase().includes(query) ||
+        (docente.especialidad ?? '').toLowerCase().includes(query),
+    );
+  }, [docentes, search]);
+
+  const hasChanges = editingId !== null && JSON.stringify(form) !== JSON.stringify(initialForm);
+  const canSubmit = editingId === null || hasChanges;
+
   const openCreateModal = () => {
     setEditingId(null);
     setForm(emptyForm);
+    setInitialForm(emptyForm);
     setFormError('');
     setModalOpen(true);
   };
 
   const openEditModal = (docente: Docente) => {
-    setEditingId(docente.id);
-    setForm({
+    const loaded: DocenteFormValues = {
       nombre_completo: docente.nombre_completo,
       correo_institucional: docente.correo_institucional,
       telefono: docente.telefono ?? '',
       departamento: docente.departamento ?? '',
       especialidad: docente.especialidad ?? '',
       estado: (docente.estado.toUpperCase() as DocenteFormValues['estado']) ?? 'ACTIVO',
-    });
+    };
+    setEditingId(docente.id);
+    setForm(loaded);
+    setInitialForm(loaded);
     setFormError('');
     setModalOpen(true);
   };
@@ -80,17 +141,34 @@ export function DocentesPage() {
     setForm((prev) => ({ ...prev, [field]: event.target.value }));
   };
 
+  // El teléfono no deja escribir nada que no sea dígito, y corta en 14.
+  const handleTelefonoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const soloNumeros = event.target.value.replace(/\D/g, '').slice(0, TELEFONO_MAX);
+    setForm((prev) => ({...prev, telefono: soloNumeros}));
+  };
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!canSubmit) return;
+
     setFormError('');
-    setSaving(true);
 
     const payload: DocenteFormValues = {
       ...form,
+      nombre_completo: form.nombre_completo.trim(),
+      correo_institucional: form.correo_institucional.trim(),
       telefono: form.telefono.trim(),
+      departamento: form.departamento.trim(),
       especialidad: form.especialidad.trim(),
     };
 
+    const errorValidacion = validar(payload);
+    if (errorValidacion) {
+      setFormError(errorValidacion);
+      return;
+    }
+
+    setSaving(true);
     try {
       if (editingId) {
         await updateDocente(editingId, payload);
@@ -126,6 +204,22 @@ export function DocentesPage() {
       <section className="catalog-page">
         <div className="toolbar">
           <div className="catalog-summary">{docentes.length} Docentes Registrados</div>
+
+          <div className="search-box toolbar-search">
+            🔎
+            <input
+                type="text"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Buscar por nombre, correo, departamento..."
+            />
+            {search ? (
+                <button type="button" className="search-clear" onClick={() => setSearch('')}>
+                  ×
+                </button>
+            ) : null}
+          </div>
+
           <button className="primary-btn" onClick={openCreateModal}>
             + Nuevo Docente
           </button>
@@ -152,12 +246,14 @@ export function DocentesPage() {
                 <tr>
                   <td colSpan={8}>Cargando docentes...</td>
                 </tr>
-            ) : docentes.length === 0 ? (
+            ) : filteredDocentes.length === 0 ? (
                 <tr>
-                  <td colSpan={8}>No hay docentes registrados todavía.</td>
+                  <td colSpan={8}>
+                    {search ? 'Ningún docente coincide con la búsqueda.' : 'No hay docentes registrados todavía.'}
+                  </td>
                 </tr>
             ) : (
-                docentes.map((docente) => (
+                filteredDocentes.map((docente) => (
                     <tr key={docente.id}>
                       <td>{docenteCodigo(docente.id)}</td>
                       <td>{docente.nombre_completo}</td>
@@ -195,14 +291,13 @@ export function DocentesPage() {
                   </button>
                 </div>
 
-                <form className="modal-form" onSubmit={handleSubmit}>
+                <form className="modal-form" onSubmit={handleSubmit} noValidate>
                   <div className="form-field">
                     <label>Nombre Completo</label>
                     <input
                         type="text"
                         value={form.nombre_completo}
                         onChange={handleChange('nombre_completo')}
-                        required
                         maxLength={150}
                     />
                   </div>
@@ -210,10 +305,10 @@ export function DocentesPage() {
                   <div className="form-field">
                     <label>Correo Institucional</label>
                     <input
-                        type="email"
+                        type="text"
                         value={form.correo_institucional}
                         onChange={handleChange('correo_institucional')}
-                        required
+                        placeholder={`nombre${CORREO_DOMINIO}`}
                         maxLength={150}
                     />
                   </div>
@@ -223,9 +318,11 @@ export function DocentesPage() {
                       <label>Teléfono</label>
                       <input
                           type="text"
+                          inputMode="numeric"
                           value={form.telefono}
-                          onChange={handleChange('telefono')}
-                          maxLength={20}
+                          onChange={handleTelefonoChange}
+                          maxLength={TELEFONO_MAX}
+                          placeholder={`Hasta ${TELEFONO_MAX} dígitos`}
                       />
                     </div>
 
@@ -246,7 +343,6 @@ export function DocentesPage() {
                           type="text"
                           value={form.departamento}
                           onChange={handleChange('departamento')}
-                          required
                           maxLength={100}
                       />
                     </div>
@@ -268,7 +364,7 @@ export function DocentesPage() {
                     <button type="button" className="secondary-btn" onClick={closeModal} disabled={saving}>
                       Cancelar
                     </button>
-                    <button type="submit" className="primary-btn" disabled={saving}>
+                    <button type="submit" className="primary-btn" disabled={saving || !canSubmit}>
                       {saving ? 'Guardando...' : editingId ? 'Guardar Cambios' : 'Crear Docente'}
                     </button>
                   </div>
